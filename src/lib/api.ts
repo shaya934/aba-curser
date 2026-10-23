@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError, z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { db } from './db';
+import { goals } from './goals';
 import { schedule } from './scheduling';
 import { profiles } from './profiles';
 import { json } from './validation';
@@ -35,6 +36,8 @@ export async function handle(request: NextRequest, path: string[]) {
       const organization = await db.organization.findUniqueOrThrow({ where: { id: actor.orgId } });
       return NextResponse.json({ clients, staff: actor.role === 'ADMIN' ? await db.user.count({ where: { orgId: actor.orgId, status: 'Active' } }) : undefined, appointments, sessions, organization });
     }
+    const goalResponse = await goals(actor, path, request);
+    if (goalResponse) return goalResponse as NextResponse;
     const scheduleResponse = await schedule(actor, path, request);
     if (scheduleResponse) return scheduleResponse as NextResponse;
     const profileResponse = await profiles(actor, path, request);

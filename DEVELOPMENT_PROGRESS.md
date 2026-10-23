@@ -18,3 +18,8 @@ Validation: 6/6 cumulative tests passed, including real database profile creatio
 Daily/weekly/monthly responsive calendars, client/therapist/status filters, assigned-therapist scheduling, occurrence rescheduling, cancellation/no-show/restore, recurring daily/weekly rules (up to 52 occurrences), status tracking and session entry links. Organization-scoped transaction locks prevent races when booking overlapping client or therapist time. IANA timezones and calendar arithmetic preserve wall times across DST; repeated/gap local times are rejected explicitly.
 
 Validation: 8/8 cumulative service/database tests passed; concurrent booking test admitted exactly one appointment; recurrence/DST checks passed; TypeScript, idempotent migrations and production build passed. Chromium browser navigation, authentication, day/month switching and no horizontal overflow passed on desktop and mobile (2/2 browser tests).
+
+## Phase 4 — Goals and targets (complete)
+Configurable goal/target forms, clinical domains, baseline and mastery criteria, all six measurement types, lifecycle statuses and mastery timestamps. Definition changes retain immutable versions; optimistic version checks prevent lost updates. Assigned BCBAs and administrators manage definitions; RBTs/BTs have read access only.
+
+Validation: 9/9 cumulative tests passed, including all measurement types, relationships, two-version history, stale-edit rejection, RBT write denial and unassigned BCBA denial. TypeScript, production build and idempotent migrations passed. Real Chromium goal and frequency-target creation forms passed on desktop and mobile (2/2 phase-specific browser tests).

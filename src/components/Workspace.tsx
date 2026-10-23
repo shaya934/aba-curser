@@ -2,6 +2,7 @@
 import { useEffect,useState } from 'react';
 import { Users,UserRound,CalendarDays,ClipboardCheck,ArrowUpRight,Plus,Sun } from 'lucide-react';
 import Link from 'next/link';
+import Goals from './Goals';
 import Schedule from './Schedule';
 import Profiles from './Profiles';
 import Documents from './Documents';
@@ -11,6 +12,7 @@ export default function Workspace({section,actor}:{section:string[],actor:Actor}
  const[data,setData]=useState<any>(null);const[error,setError]=useState('');
  useEffect(()=>{fetch('/api/dashboard').then(async r=>{if(!r.ok)throw Error('Could not load workspace');setData(await r.json());}).catch(e=>setError(e.message));},[]);
  if(section[0]==='clients'||section[0]==='staff')return <Profiles kind={section[0]} id={section[1]} actor={actor}/>;
+ if(section[0]==='goals')return <Goals actor={actor}/>;
  if(section[0]==='schedule')return <Schedule actor={actor}/>;
  if(section[0]==='documents')return <Documents actor={actor}/>;
  if(section[0]==='settings')return <Settings/>;
