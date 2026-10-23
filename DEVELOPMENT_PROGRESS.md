@@ -70,3 +70,10 @@ Executed validation:
 - The actual HTTP cron endpoint returned **401** without its bearer token. Configuration and limit tests reject insecure/missing settings and oversized requests. **Production dependency audit: 0 vulnerabilities.** All executed tests completed with no failures/skips.
 
 Limits: these are local build/integration results, not validation of an actual Vercel instance or hosted PostgreSQL/S3 account. Provider credentials, private-bucket policy, plan eligibility/costs, hosted TLS/connectivity, migrations/initial administrator and the deployment smoke checklist remain user/operator setup. No public deployment, resource subscription, real PHI or automatic merge was performed.
+
+## Deployment attempt — account access pending
+The user authorized performing the hosted deployment. No Vercel CLI login/project linkage, Vercel environment token, or usable AWS credential profile was present. GitHub integration access can push application changes but cannot list repository Actions secrets/variables. No credentials were extracted or requested in chat, and no paid resources were created.
+
+GitHub's new S3 CI step failed before the application build with a connection-refused readiness result (exit 7). Local S3 tests remained green. Updated CI to pin Ubuntu 24.04/Python 3.12 and launch Moto with an explicit isolated virtual-environment Python module, removing dependence on the runner's executable PATH; failed startup now prints its diagnostic log. The explicit Python-module launch and both S3 integration tests were verified locally on a separate port (2/2 passed). The next GitHub run must establish whether this resolves the remote startup failure; no remote success is claimed yet.
+
+Vercel CLI was installed outside the repository and configured to use writable XDG directories. Its authorization attempt could not reach Vercel through the current network policy. Required network additions were saved in the environment draft. Secure Vercel account authorization remains a prerequisite to creating/configuring a project and inspecting available hosting integrations. The application is not publicly deployed.
