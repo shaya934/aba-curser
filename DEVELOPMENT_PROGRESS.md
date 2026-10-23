@@ -8,3 +8,8 @@ Seven sequential phases: foundation; profiles; scheduling; goals; data collectio
 Next.js/React/TypeScript/Tailwind workspace, responsive navigation, PostgreSQL schema and migrations, Prisma PostgreSQL driver adapter, salted scrypt passwords, hashed expiring session cookies, login rate limits, CSRF origin checks, backend roles and tenant/assignment scope, synthetic seed accounts.
 
 Validation: 4/4 tests passed (passwords, role denial, missing authentication, database-backed login/logout/client scope); TypeScript passed; production build passed. Live HTTP checks passed for login page, sign-in, authorized dashboard, and workspace navigation. Migration applied to PostgreSQL 17; seed executed. Prisma's binary host is blocked, so checked-in SQL is applied transactionally via `scripts/migrate.ts`; Prisma client generation uses its JS driver engine.
+
+## Phase 2 — Client and staff profiles (complete)
+Client and staff CRUD through validated, authorized APIs and profile forms; employment/certification/authorization metadata; care-team assignment and revocation; client tabs; private AES-256-GCM document storage with type/size validation; staff document access; agency settings and audit activity.
+
+Validation: 6/6 cumulative tests passed, including real database profile creation, assignment scope/revocation, encrypted file round-trip, denied downloads, and MIME spoof rejection. TypeScript and production build passed; migration rerun was idempotent. Live authenticated profile/staff/documents/settings API smoke checks passed; unauthenticated access returned 401. Schedule, goals, sessions and progress tabs are connected to APIs implemented in subsequent phases.

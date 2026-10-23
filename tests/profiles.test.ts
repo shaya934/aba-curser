@@ -1,0 +1,21 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {db} from '../src/lib/db';
+import {profiles} from '../src/lib/profiles';
+import {type Actor,requireClient} from '../src/lib/auth';
+import {retrieve,validateFile,removeStored} from '../src/lib/storage';
+const req=(method:string,data?:unknown)=>new Request('http://localhost/api',{method,body:data?JSON.stringify(data):undefined});
+after(()=>db.$disconnect());
+test('persist profiles, assign therapist, isolate clients, encrypt and authorize document downloads',async()=>{
+ const admin=await db.user.findUniqueOrThrow({where:{email:'admin@example.test'}});const rbt=await db.user.findUniqueOrThrow({where:{email:'rbt@example.test'}});
+ const a:Actor=admin;const r:Actor=rbt;
+ const created=await profiles(a,['clients'],req('POST',{name:'Synthetic Profile Test',clientCode:'T-'+Date.now(),dob:'2018-02-02'}));const c=await created!.json();assert.equal(c.name,'Synthetic Profile Test');
+ await assert.rejects(requireClient(r,c.id),/not found/);
+ await profiles(a,['clients',c.id,'assignments'],req('POST',{userId:r.id}));assert.equal((await requireClient(r,c.id)).id,c.id);
+ await assert.rejects(profiles(r,['clients'],req('POST',{name:'denied'})),/permission/);
+ const pdf=Buffer.from('%PDF-1.4\nsynthetic document');const result=await profiles(r,['documents'],req('POST',{clientId:c.id,name:'synthetic.pdf',category:'Other',mimeType:'application/pdf',data:pdf.toString('base64')}));const doc=await db.document.findUniqueOrThrow({where:{id:(await result!.json()).id}});assert.deepEqual(await retrieve(doc.storageKey),pdf);
+ await profiles(a,['clients',c.id,'assignments'],req('POST',{userId:r.id,remove:true}));await assert.rejects(profiles(r,['documents',doc.id],req('GET')),/not found/);
+ const res=await profiles(a,['documents',doc.id],req('GET'));assert.equal(res!.headers.get('content-type'),'application/pdf');
+ await removeStored(doc.storageKey);await db.document.delete({where:{id:doc.id}});await db.client.delete({where:{id:c.id}});
+});
+test('reject content type spoofing and invalid files',()=>{assert.throws(()=>validateFile(Buffer.from('<script>bad</script>'),'application/pdf'),/matching/);assert.throws(()=>validateFile(Buffer.alloc(0),'image/png'),/5 MB/);});
