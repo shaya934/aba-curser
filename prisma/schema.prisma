@@ -1,0 +1,254 @@
+generator client {
+ provider = "prisma-client-js"
+ engineType = "client"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+enum Role {
+ ADMIN
+ BCBA
+ RBT
+ BT
+}
+model Organization {
+ id String @id @default(cuid())
+ name String
+ timezone String @default("America/New_York")
+ requireApproval Boolean @default(false)
+ createdAt DateTime @default(now())
+ users User[]
+ clients Client[]
+}
+model User {
+ id String @id @default(cuid())
+ orgId String
+ organization Organization @relation(fields: [orgId], references: [id])
+ email String @unique
+ name String
+ passwordHash String
+ role Role
+ phone String @default("")
+ title String @default("")
+ status String @default("Active")
+ startDate String @default("")
+ certification String @default("")
+ certificationExpiry String @default("")
+ npi String @default("")
+ availability String @default("")
+ createdAt DateTime @default(now())
+ assignments Assignment[]
+ authSessions AuthSession[]
+ appointments Appointment[]
+ sessions ClinicalSession[]
+}
+model AuthSession {
+ id String @id
+ userId String
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+}
+model Client {
+ id String @id @default(cuid())
+ orgId String
+ organization Organization @relation(fields: [orgId], references: [id])
+ clientCode String
+ name String
+ dob String
+ address String @default("")
+ guardians String @default("")
+ contact String @default("")
+ diagnosis String @default("")
+ insurance String @default("")
+ authorizationStart String @default("")
+ authorizationEnd String @default("")
+ authorizationHours Float @default(0)
+ status String @default("Active")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ assignments Assignment[]
+ appointments Appointment[]
+ goals Goal[]
+ sessions ClinicalSession[]
+ documents Document[]
+ @@unique([orgId, clientCode])
+ @@unique([id, orgId])
+}
+model Assignment {
+ id String @id @default(cuid())
+ clientId String
+ userId String
+ client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ createdAt DateTime @default(now())
+ @@unique([clientId, userId])
+}
+model RecurringRule {
+ id String @id @default(cuid())
+ orgId String
+ timezone String
+ frequency String
+ count Int
+ localStart String
+ localEnd String
+ createdAt DateTime @default(now())
+ appointments Appointment[]
+}
+model Appointment {
+ id String @id @default(cuid())
+ orgId String
+ clientId String
+ therapistId String
+ client Client @relation(fields: [clientId, orgId], references: [id, orgId])
+ therapist User @relation(fields: [therapistId], references: [id])
+ start DateTime
+ end DateTime
+ timezone String
+ location String
+ status String @default("Scheduled")
+ recurrenceId String?
+ recurrence RecurringRule? @relation(fields: [recurrenceId], references: [id])
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ session ClinicalSession?
+ @@index([orgId, start])
+}
+model Goal {
+ id String @id @default(cuid())
+ orgId String
+ clientId String
+ client Client @relation(fields: [clientId, orgId], references: [id, orgId])
+ name String
+ description String @default("")
+ domain String
+ startDate String
+ status String @default("Active")
+ masteryCriteria String
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ targets Target[]
+}
+model Target {
+ id String @id @default(cuid())
+ goalId String
+ goal Goal @relation(fields: [goalId], references: [id])
+ name String
+ description String @default("")
+ measurement String
+ baseline String @default("")
+ masteryCriteria String
+ status String @default("Active")
+ masteredAt DateTime?
+ version Int @default(1)
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ entries DataEntry[]
+}
+model ClinicalHistory {
+ id String @id @default(cuid())
+ orgId String
+ entityId String
+ entityType String
+ version Int
+ snapshot Json
+ actorId String
+ createdAt DateTime @default(now())
+ @@unique([entityId, version])
+}
+model ClinicalSession {
+ id String @id @default(cuid())
+ orgId String
+ clientId String
+ therapistId String
+ appointmentId String @unique
+ client Client @relation(fields: [clientId, orgId], references: [id, orgId])
+ therapist User @relation(fields: [therapistId], references: [id])
+ appointment Appointment @relation(fields: [appointmentId], references: [id])
+ status String @default("In Progress")
+ actualStart DateTime @default(now())
+ actualEnd DateTime?
+ note String @default("")
+ observations String @default("")
+ version Int @default(0)
+ signedAt DateTime?
+ approvedAt DateTime?
+ approvedBy String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ entries DataEntry[]
+ reports PdfReport[]
+ amendments Amendment[]
+}
+model DataEntry {
+ id String @id @default(cuid())
+ sessionId String
+ targetId String
+ session ClinicalSession @relation(fields: [sessionId], references: [id])
+ target Target @relation(fields: [targetId], references: [id])
+ idempotencyKey String
+ kind String
+ value Float
+ numerator Float?
+ denominator Float?
+ durationMs Int?
+ targetSnapshot Json
+ recordedAt DateTime @default(now())
+ voidedAt DateTime?
+ @@unique([sessionId, idempotencyKey])
+}
+model Amendment {
+ id String @id @default(cuid())
+ sessionId String
+ session ClinicalSession @relation(fields: [sessionId], references: [id])
+ version Int
+ reason String
+ note String
+ actorId String
+ createdAt DateTime @default(now())
+ @@unique([sessionId, version])
+}
+model PdfReport {
+ id String @id @default(cuid())
+ orgId String
+ sessionId String
+ session ClinicalSession @relation(fields: [sessionId], references: [id])
+ version Int
+ status String @default("Pending")
+ attempts Int @default(0)
+ error String?
+ storageKey String?
+ snapshot Json
+ createdAt DateTime @default(now())
+ @@unique([sessionId, version])
+}
+model Document {
+ id String @id @default(cuid())
+ orgId String
+ clientId String?
+ staffId String?
+ client Client? @relation(fields: [clientId], references: [id])
+ name String
+ category String
+ mimeType String
+ size Int
+ storageKey String
+ uploadedBy String
+ createdAt DateTime @default(now())
+}
+model AuditLog {
+ id String @id @default(cuid())
+ orgId String
+ actorId String
+ action String
+ entityId String
+ createdAt DateTime @default(now())
+ @@index([orgId, createdAt])
+}
+model RateLimit {
+ key String @id
+ attempts Int @default(1)
+ resetAt DateTime
+}

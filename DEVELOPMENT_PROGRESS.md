@@ -1,0 +1,10 @@
+# Development progress
+
+Specification: ABA Therapy Codex Master Development Plan (user-supplied PDF). All development and tests use synthetic data.
+
+Seven sequential phases: foundation; profiles; scheduling; goals; data collection; PDF reports; integration. Test results are recorded only after execution. No production readiness or HIPAA compliance is implied.
+
+## Phase 1 — Foundation (complete)
+Next.js/React/TypeScript/Tailwind workspace, responsive navigation, PostgreSQL schema and migrations, Prisma PostgreSQL driver adapter, salted scrypt passwords, hashed expiring session cookies, login rate limits, CSRF origin checks, backend roles and tenant/assignment scope, synthetic seed accounts.
+
+Validation: 4/4 tests passed (passwords, role denial, missing authentication, database-backed login/logout/client scope); TypeScript passed; production build passed. Live HTTP checks passed for login page, sign-in, authorized dashboard, and workspace navigation. Migration applied to PostgreSQL 17; seed executed. Prisma's binary host is blocked, so checked-in SQL is applied transactionally via `scripts/migrate.ts`; Prisma client generation uses its JS driver engine.
