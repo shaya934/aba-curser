@@ -32,7 +32,7 @@ export default function Documents({
       {open && (
         <Modal title="Upload document" close={() => setOpen(false)}>
           <p className="muted">
-            PDF, PNG, or JPEG · up to 5 MB. Files are encrypted and access is checked on every
+            PDF, PNG, or JPEG · up to 3 MB. Files are encrypted and access is checked on every
             download.
           </p>
           <Form
@@ -73,7 +73,7 @@ export default function Documents({
             submit="Upload securely"
             onSave={async (d) => {
               if (!file) throw Error('Choose a file.');
-              if (file.size > 5 * 1024 * 1024) throw Error('Maximum file size is 5 MB.');
+              if (file.size > 3_000_000) throw Error('Maximum file size is 3 MB.');
               const data = await new Promise<string>((resolve, reject) => {
                 const r = new FileReader();
                 r.onload = () => resolve(String(r.result).split(',')[1]);

@@ -183,7 +183,8 @@ export async function processReport(id: string) {
     );
     return true;
   } catch {
-    if (stored) await removeStored(stored);
+    if (stored)
+      await removeStored(stored).catch(() => console.error('Report artifact cleanup failed.'));
     await db.pdfReport.updateMany({
       where: { id, status: { not: 'Ready' } },
       data: {
@@ -198,7 +199,9 @@ export async function processReport(id: string) {
 }
 export async function generateSessionReports(sessionId: string) {
   for (const report of await db.pdfReport.findMany({
-    where: { sessionId, status: { not: 'Ready' } },
+    where: { sessionId, status: { not: 'Ready' }, attempts: { lt: 5 } },
+    orderBy: { version: 'desc' },
+    take: 1,
   }))
     await processReport(report.id);
 }

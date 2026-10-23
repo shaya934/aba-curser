@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { handle } from '@/lib/api';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 async function route(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const response = await handle(req, (await context.params).path);

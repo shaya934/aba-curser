@@ -4,6 +4,10 @@ A calm, responsive care workspace built with Next.js 16, React 19, TypeScript, T
 
 **Use synthetic data only until the pre-production safeguards in [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) are completed. Code alone does not establish HIPAA compliance.**
 
+## Vercel hosting
+
+For hosted deployment, follow [the Vercel guide](docs/VERCEL_DEPLOYMENT.md). It covers private S3 storage, pooled PostgreSQL, operator-run migrations/first-admin creation, deployment variables, daily protected cron recovery and a hosted smoke-test checklist. No paid services or public deployment were created. Local setup below remains supported.
+
 ## Quick start
 
 Prerequisites: Node.js 24 LTS, npm, Docker with Compose (or a PostgreSQL database), and Linux/macOS. The lockfile pins dependencies.
@@ -20,7 +24,7 @@ npm run dev
 
 The development application listens on port 3000. Sign in with `admin@example.test`, `bcba@example.test`, or `rbt@example.test` and the **local `SEED_PASSWORD` in `.env`**. Passwords are never printed by setup and `.env` is ignored by Git. Set your own strong `SEED_PASSWORD` before first seeding if preferred. Rerunning seed preserves existing account passwords. Administrators create staff accounts and can reset passwords from staff profiles; password/role/status changes revoke existing sessions.
 
-For a remote PostgreSQL instance, create `.env` from `.env.example`, configure `DATABASE_URL`, generate a 32-byte hex `STORAGE_KEY` (`openssl rand -hex 32`), set `SEED_PASSWORD` to at least 12 characters and run `npm run setup` without starting Compose. Do not use the development seed in production; provision the first organization/administrator through an operator-controlled Prisma script following `prisma/seed.ts`.
+For a remote PostgreSQL instance, create `.env` from `.env.example`, configure the pooled `DATABASE_URL` and a `DATABASE_DIRECT_URL` for migrations, generate a 32-byte hex `STORAGE_KEY` (`openssl rand -hex 32`), set `SEED_PASSWORD` to at least 12 characters and run `npm run setup` without starting Compose. Do not use the development seed in production; provision the first organization/administrator with the operator-only `npm run admin:create` command described in the Vercel guide.
 
 ## Configuration
 
@@ -88,7 +92,7 @@ npm run reports:worker
 
 Finalization saves the session and report snapshot in one transaction before rendering. Rendering failure cannot remove the signed session. Immediate generation handles normal requests; the worker recovers interrupted/pending/failed jobs after restarts (automatic attempts capped at five, with authorized manual retry available). PostgreSQL report locks and unique session/version keys prevent duplicate report records/artifacts from concurrent retries. A process crash after a file write but before DB commit can leave an unreachable encrypted object; reconcile those against document/report metadata during maintenance, without deleting referenced objects.
 
-Private local storage is the development alternative to managed encrypted object storage. Keep the private directory outside public assets. Before horizontal scaling, use an encrypted shared volume or implement a private object-store backend behind the small `store/retrieve/removeStored` interface. Key rotation needs a deliberate re-encryption migration; simply replacing the key makes old files unreadable.
+Private local storage is the development alternative to the implemented S3-compatible encrypted object backend. Set `STORAGE_DRIVER=s3` with the documented credentials for hosted deployments. Keep the private directory outside public assets. Before horizontal scaling, use the private S3 backend or an appropriately encrypted shared volume. Key rotation needs a deliberate re-encryption migration; simply replacing the key makes old files unreadable.
 
 ### Backup and restore
 

@@ -1,3 +1,4 @@
+import { validateVercelConfiguration } from './deployment';
 import { rateLimit } from './limits';
 import { DateTime } from 'luxon';
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,6 +14,7 @@ import { json } from './validation';
 import { currentActor, login, logout, HttpError, clientScope } from './auth';
 export async function handle(request: NextRequest, path: string[]) {
   try {
+    if (process.env.VERCEL) validateVercelConfiguration();
     if (!['GET', 'HEAD'].includes(request.method)) {
       const origin = request.headers.get('origin');
       if (!origin || origin !== new URL(process.env.APP_ORIGIN || request.url).origin)

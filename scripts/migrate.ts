@@ -2,10 +2,13 @@
  * This small runner avoids a schema-engine binary download in restricted cloud machines.
  * The Prisma migration table is compatible with `prisma migrate deploy`.
  */
+import { migrationDatabaseUrl } from '../src/lib/deployment';
 import { Client } from 'pg';
 import { createHash, randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
-const db = new Client({ connectionString: process.env.DATABASE_URL });
+const db = new Client({
+  connectionString: migrationDatabaseUrl(),
+});
 await db.connect();
 try {
   await db.query('SELECT pg_advisory_lock(8675309)');

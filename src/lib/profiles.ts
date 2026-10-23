@@ -165,7 +165,7 @@ export async function profiles(
             'Other',
           ]),
           mimeType: z.enum(['application/pdf', 'image/png', 'image/jpeg']),
-          data: z.string().max(7000000),
+          data: z.string().max(4_000_000),
         })
         .refine(
           (v) => Boolean(v.clientId) !== Boolean(v.staffId),

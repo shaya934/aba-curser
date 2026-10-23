@@ -19,7 +19,7 @@ export async function json(request: Request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > 8 * 1024 * 1024) {
+    if (size > 4_200_000) {
       await reader.cancel();
       throw new HttpError(413, 'Request is too large.');
     }

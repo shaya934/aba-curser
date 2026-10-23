@@ -54,7 +54,7 @@ test('reject content type spoofing and invalid files', () => {
     () => validateFile(Buffer.from('<script>bad</script>'), 'application/pdf'),
     /matching/,
   );
-  assert.throws(() => validateFile(Buffer.alloc(0), 'image/png'), /5 MB/);
+  assert.throws(() => validateFile(Buffer.alloc(0), 'image/png'), /3 MB/);
 });
 
 test('agency logos are validated, encrypted and available to immutable report snapshots', async () => {
