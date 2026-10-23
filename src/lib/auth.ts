@@ -1,5 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypto';
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers.js';
 import { db } from './db';
 import type { User } from '@prisma/client';
 export type Actor = Pick<User, 'id' | 'orgId' | 'role' | 'name' | 'email'>;
