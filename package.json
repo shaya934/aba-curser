@@ -11,9 +11,12 @@
     "db:generate": "prisma generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "reports:retry": "node --env-file-if-exists=.env --import tsx scripts/retry-reports.ts",
+    "reports:worker": "node --env-file-if-exists=.env --import tsx scripts/retry-reports.ts --watch"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@prisma/adapter-pg": "^6.19.0",
     "@prisma/client": "6.19.0",
     "lucide-react": "^0.468.0",

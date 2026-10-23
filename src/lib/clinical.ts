@@ -64,5 +64,6 @@ export async function clinical(actor:Actor,path:string[],req:Request):Promise<Re
 }
 async function enqueueReport(tx:Prisma.TransactionClient,id:string,version:number){
  const session=await tx.clinicalSession.findUniqueOrThrow({where:{id},include:{client:true,therapist:{select:{name:true,title:true,certification:true,npi:true}},appointment:true,entries:{where:{voidedAt:null},orderBy:{recordedAt:'asc'}}}});const organization=await tx.organization.findUniqueOrThrow({where:{id:session.orgId}});
- await tx.pdfReport.upsert({where:{sessionId_version:{sessionId:id,version}},update:{},create:{orgId:session.orgId,sessionId:id,version,snapshot:snapshot({...session,organization:{name:organization.name,timezone:organization.timezone},summary:summarize(session.entries),version})}});
+ const approval=session.approvedBy?await tx.user.findUnique({where:{id:session.approvedBy},select:{name:true,role:true}}):null;
+ await tx.pdfReport.upsert({where:{sessionId_version:{sessionId:id,version}},update:{},create:{orgId:session.orgId,sessionId:id,version,snapshot:snapshot({...session,approval,organization:{name:organization.name,timezone:organization.timezone},summary:summarize(session.entries),version})}});
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError, z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { db } from './db';
+import { reports,generateSessionReports } from './reports';
 import { clinical } from './clinical';
 import { goals } from './goals';
 import { schedule } from './scheduling';
@@ -37,8 +38,13 @@ export async function handle(request: NextRequest, path: string[]) {
       const organization = await db.organization.findUniqueOrThrow({ where: { id: actor.orgId } });
       return NextResponse.json({ clients, staff: actor.role === 'ADMIN' ? await db.user.count({ where: { orgId: actor.orgId, status: 'Active' } }) : undefined, appointments, sessions, organization });
     }
+    const reportResponse = await reports(actor, path, request);
+    if (reportResponse) return reportResponse as NextResponse;
     const clinicalResponse = await clinical(actor, path, request);
-    if (clinicalResponse) return clinicalResponse as NextResponse;
+    if (clinicalResponse) {
+      if(request.method==='POST'&&path[0]==='sessions'&&['finalize','approve','amendments'].includes(path[2])) await generateSessionReports(path[1]);
+      return clinicalResponse as NextResponse;
+    }
     const goalResponse = await goals(actor, path, request);
     if (goalResponse) return goalResponse as NextResponse;
     const scheduleResponse = await schedule(actor, path, request);
