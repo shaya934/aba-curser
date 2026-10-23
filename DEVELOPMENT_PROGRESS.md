@@ -13,3 +13,8 @@ Validation: 4/4 tests passed (passwords, role denial, missing authentication, da
 Client and staff CRUD through validated, authorized APIs and profile forms; employment/certification/authorization metadata; care-team assignment and revocation; client tabs; private AES-256-GCM document storage with type/size validation; staff document access; agency settings and audit activity.
 
 Validation: 6/6 cumulative tests passed, including real database profile creation, assignment scope/revocation, encrypted file round-trip, denied downloads, and MIME spoof rejection. TypeScript and production build passed; migration rerun was idempotent. Live authenticated profile/staff/documents/settings API smoke checks passed; unauthenticated access returned 401. Schedule, goals, sessions and progress tabs are connected to APIs implemented in subsequent phases.
+
+## Phase 3 — Scheduling (complete)
+Daily/weekly/monthly responsive calendars, client/therapist/status filters, assigned-therapist scheduling, occurrence rescheduling, cancellation/no-show/restore, recurring daily/weekly rules (up to 52 occurrences), status tracking and session entry links. Organization-scoped transaction locks prevent races when booking overlapping client or therapist time. IANA timezones and calendar arithmetic preserve wall times across DST; repeated/gap local times are rejected explicitly.
+
+Validation: 8/8 cumulative service/database tests passed; concurrent booking test admitted exactly one appointment; recurrence/DST checks passed; TypeScript, idempotent migrations and production build passed. Chromium browser navigation, authentication, day/month switching and no horizontal overflow passed on desktop and mobile (2/2 browser tests).

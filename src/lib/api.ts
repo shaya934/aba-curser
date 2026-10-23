@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError, z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { db } from './db';
+import { schedule } from './scheduling';
 import { profiles } from './profiles';
 import { json } from './validation';
 import { currentActor, login, logout, HttpError, clientScope } from './auth';
@@ -34,6 +35,8 @@ export async function handle(request: NextRequest, path: string[]) {
       const organization = await db.organization.findUniqueOrThrow({ where: { id: actor.orgId } });
       return NextResponse.json({ clients, staff: actor.role === 'ADMIN' ? await db.user.count({ where: { orgId: actor.orgId, status: 'Active' } }) : undefined, appointments, sessions, organization });
     }
+    const scheduleResponse = await schedule(actor, path, request);
+    if (scheduleResponse) return scheduleResponse as NextResponse;
     const profileResponse = await profiles(actor, path, request);
     if (profileResponse) return profileResponse as NextResponse;
     throw new HttpError(404, 'Not found.');
