@@ -6,14 +6,17 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build --webpack",
     "start": "next start --hostname 0.0.0.0",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node --env-file-if-exists=.env --import tsx --test --test-concurrency=1 tests/*.test.ts",
-    "db:generate": "prisma generate",
+    "db:generate": "node --env-file-if-exists=.env --import tsx scripts/generate.ts",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test",
     "reports:retry": "node --env-file-if-exists=.env --import tsx scripts/retry-reports.ts",
-    "reports:worker": "node --env-file-if-exists=.env --import tsx scripts/retry-reports.ts --watch"
+    "reports:worker": "node --env-file-if-exists=.env --import tsx scripts/retry-reports.ts --watch",
+    "format": "prettier --write src tests scripts prisma/seed.ts *.ts *.json *.mjs",
+    "env:init": "node --import tsx scripts/init-env.ts",
+    "setup": "npm run env:init && npm run db:generate && npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
@@ -30,16 +33,22 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.0",
+    "@prisma/internals": "^6.19.0",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/luxon": "^3.7.0",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "prettier": "^3.9.10",
     "prisma": "6.19.0",
     "tailwindcss": "^4.1.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "deepmerge-ts": "^8.0.0",
+    "effect": "^3.20.0"
+  }
 }

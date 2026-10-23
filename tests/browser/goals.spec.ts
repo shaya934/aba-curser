@@ -1,5 +1,29 @@
-import {test,expect} from '@playwright/test';
-test('create a goal and configurable target through real UI forms',async({page})=>{
- await page.goto('/login');await page.getByLabel('Work email').fill('admin@example.test');await page.getByLabel('Password',{exact:true}).fill(process.env.SEED_PASSWORD!);await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.getByRole('heading',{name:/Hello/})).toBeVisible();
- const c=await page.request.post('/api/clients',{headers:{origin:'http://localhost:3000'},data:{name:'Synthetic UI Goal Client',clientCode:'UI-'+Date.now(),dob:'2018-01-01'}});expect(c.ok()).toBeTruthy();const client=await c.json();await page.goto('/goals');await page.getByLabel('Client',{exact:true}).selectOption(client.id);await page.getByRole('button',{name:'+ New goal'}).click();await page.getByLabel('Goal name').fill('Synthetic communication');await page.getByLabel('Clinical domain').fill('Communication');await page.getByLabel('Start date').fill('2026-10-23');await page.getByLabel('Mastery criteria').fill('80% across three sessions');await page.getByRole('button',{name:'Save definition'}).click();await expect(page.getByRole('heading',{name:'Synthetic communication'})).toBeVisible();await page.getByRole('button',{name:'+ Add target'}).click();await page.getByLabel('Target name').fill('Synthetic frequency');await page.getByLabel('Measurement type').selectOption('Frequency');await page.getByLabel('Mastery criteria').fill('Criteria entered by clinician');await page.getByRole('button',{name:'Save definition'}).click();await expect(page.getByText('Synthetic frequency',{exact:true})).toBeVisible();
+import { test, expect } from '@playwright/test';
+test('create a goal and configurable target through real UI forms', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Work email').fill('admin@example.test');
+  await page.getByLabel('Password', { exact: true }).fill(process.env.SEED_PASSWORD!);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /Hello/ })).toBeVisible();
+  const c = await page.request.post('/api/clients', {
+    headers: { origin: 'http://localhost:3000' },
+    data: { name: 'Synthetic UI Goal Client', clientCode: 'UI-' + Date.now(), dob: '2018-01-01' },
+  });
+  expect(c.ok()).toBeTruthy();
+  const client = await c.json();
+  await page.goto('/goals');
+  await page.getByLabel('Client', { exact: true }).selectOption(client.id);
+  await page.getByRole('button', { name: '+ New goal' }).click();
+  await page.getByLabel('Goal name').fill('Synthetic communication');
+  await page.getByLabel('Clinical domain').fill('Communication');
+  await page.getByLabel('Start date').fill('2026-10-23');
+  await page.getByLabel('Mastery criteria').fill('80% across three sessions');
+  await page.getByRole('button', { name: 'Save definition' }).click();
+  await expect(page.getByRole('heading', { name: 'Synthetic communication' })).toBeVisible();
+  await page.getByRole('button', { name: '+ Add target' }).click();
+  await page.getByLabel('Target name').fill('Synthetic frequency');
+  await page.getByLabel('Measurement type').selectOption('Frequency');
+  await page.getByLabel('Mastery criteria').fill('Criteria entered by clinician');
+  await page.getByRole('button', { name: 'Save definition' }).click();
+  await expect(page.getByText('Synthetic frequency', { exact: true })).toBeVisible();
 });

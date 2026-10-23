@@ -1,15 +1,300 @@
 'use client';
-import {useState} from 'react';
-import {DateTime} from 'luxon';
+import { useState } from 'react';
+import { DateTime } from 'luxon';
 import Link from 'next/link';
-import type {Actor} from '@/lib/auth';
-import {api,useData,Form,Modal,Notice,Heading,type Field} from './common';
-export default function Schedule({actor}:{actor:Actor}){
- const{data,error,refresh}=useData<any[]>('appointments');const clients=useData<any[]>('clients');const staff=useData<any[]>('staff');const[editing,setEditing]=useState<any>(null);const[view,setView]=useState('Week');const[anchor,setAnchor]=useState(DateTime.local().toISODate()!);const[client,setClient]=useState('');const[therapist,setTherapist]=useState('');const[status,setStatus]=useState('');const[actionError,setActionError]=useState('');
- const date=DateTime.fromISO(anchor);const start=view==='Month'?date.startOf('month').startOf('week'):view==='Week'?date.startOf('week'):date.startOf('day');const days=view==='Month'?42:view==='Week'?7:1;
- const shown=(data||[]).filter(a=>(!client||a.clientId===client)&&(!therapist||a.therapistId===therapist)&&(!status||a.status===status));
- const change=async(id:string,value:string)=>{if(!confirm(`Mark this appointment ${value.toLowerCase()}?`))return;try{await api('appointments/'+id,'PATCH',{status:value});refresh();}catch(e){setActionError((e as Error).message);}};
- const timezone=editing?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone;
- const fields:Field[]=[{name:'clientId',label:'Client',required:true,options:[{value:'',label:'Choose client…'},...(clients.data||[]).filter(c=>c.status==='Active').map(c=>({value:c.id,label:c.name}))]},{name:'therapistId',label:'Therapist (must be assigned)',required:true,options:[{value:'',label:'Choose therapist…'},...(staff.data||[]).filter(s=>s.status==='Active').map(s=>({value:s.id,label:s.name}))]},{name:'start',label:'Starts (in selected timezone)',type:'datetime-local',required:true},{name:'end',label:'Ends (in selected timezone)',type:'datetime-local',required:true},{name:'timezone',label:'IANA timezone',required:true,value:timezone},{name:'location',label:'Location',options:['Home','Clinic','School','Community','Telehealth','Other']},...(!editing?.id?[{name:'frequency',label:'Repeats',options:['Once','Daily','Weekly']},{name:'count',label:'Occurrences (maximum 52)',type:'number',value:1}]:[])];
- return <div className="stack"><Heading title="Schedule" description="Make space for meaningful moments." action={actor.role==='ADMIN'&&<button className="primary" onClick={()=>setEditing({})}>+ New appointment</button>}/><Notice error={error||actionError}/><section className="card"><div className="row between"><div className="row"><button aria-label="Previous period" onClick={()=>setAnchor(date.minus(view==='Month'?{months:1}:view==='Week'?{weeks:1}:{days:1}).toISODate()!)}>←</button><h2 style={{margin:0}}>{date.toFormat('MMMM yyyy')}</h2><button aria-label="Next period" onClick={()=>setAnchor(date.plus(view==='Month'?{months:1}:view==='Week'?{weeks:1}:{days:1}).toISODate()!)}>→</button><button onClick={()=>setAnchor(DateTime.local().toISODate()!)}>Today</button></div><div className="tabs" style={{border:0,padding:0}}>{['Day','Week','Month'].map(v=><button key={v} className={view===v?'active':''} onClick={()=>setView(v)}>{v}</button>)}</div></div><div className="grid" style={{marginTop:20,gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))'}}><select aria-label="Filter by client" value={client} onChange={e=>setClient(e.target.value)}><option value="">All clients</option>{clients.data?.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><select aria-label="Filter by therapist" value={therapist} onChange={e=>setTherapist(e.target.value)}><option value="">All therapists</option>{Array.from(new Map((data||[]).map(a=>[a.therapistId,a.therapist])).values()).map((s:any)=><option key={s.id} value={s.id}>{s.name}</option>)}</select><select aria-label="Filter by status" value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['Scheduled','In Progress','Completed','Cancelled','No Show'].map(s=><option key={s}>{s}</option>)}</select><input aria-label="Calendar date" type="date" value={anchor} onChange={e=>setAnchor(e.target.value)}/></div></section><div className="calendar" style={view==='Day'?{gridTemplateColumns:'1fr'}:undefined}>{Array.from({length:days},(_,i)=>start.plus({days:i})).map(d=><section className="calendar-cell" key={d.toISODate()}><strong className="small">{d.toFormat('ccc d')}</strong>{shown.filter(a=>DateTime.fromISO(a.start).toISODate()===d.toISODate()).map(a=><a href={'#appointment-'+a.id} className="calendar-event" key={a.id}>{DateTime.fromISO(a.start).toFormat('h:mm a')}<br/>{a.client.name}<br/>{a.status}</a>)}</section>)}</div><section className="card"><h2>Appointments in this view</h2>{shown.filter(a=>DateTime.fromISO(a.start)>=start&&DateTime.fromISO(a.start)<start.plus({days})).map(a=><div className="list-row" id={'appointment-'+a.id} key={a.id}><div><strong>{a.client.name}</strong><p className="small muted" style={{margin:'5px 0'}}>{new Date(a.start).toLocaleString()} – {new Date(a.end).toLocaleTimeString()}<br/>{a.therapist.name} · {a.location} · {a.timezone}</p><span className="badge">{a.status}</span></div><div className="row">{a.status==='Scheduled'&&(actor.id===a.therapistId||actor.role==='ADMIN')&&<Link className="primary button" href={'/sessions?start='+a.id}>Start session →</Link>}{a.session&&<Link className="button" href={'/sessions/'+a.session.id}>Open session</Link>}{actor.role==='ADMIN'&&a.status==='Scheduled'&&<><button onClick={()=>setEditing(a)}>Reschedule</button><button onClick={()=>change(a.id,'No Show')}>No show</button><button className="danger" onClick={()=>change(a.id,'Cancelled')}>Cancel</button></>}{actor.role==='ADMIN'&&['Cancelled','No Show'].includes(a.status)&&<button onClick={()=>change(a.id,'Scheduled')}>Restore</button>}</div></div>)}{!shown.some(a=>DateTime.fromISO(a.start)>=start&&DateTime.fromISO(a.start)<start.plus({days}))&&<p className="empty">No appointments in this view.</p>}</section>{editing&&<Modal title={editing.id?'Reschedule occurrence':'New appointment'} close={()=>setEditing(null)}><Form fields={fields} initial={{...editing,...(editing.id?{start:DateTime.fromISO(editing.start,{zone:timezone}).toFormat("yyyy-MM-dd'T'HH:mm"),end:DateTime.fromISO(editing.end,{zone:timezone}).toFormat("yyyy-MM-dd'T'HH:mm")}:{})}} submit="Save appointment" onSave={async d=>{await api('appointments'+(editing.id?'/'+editing.id:''),editing.id?'PATCH':'POST',d);setEditing(null);refresh();}}/></Modal>}</div>
+import type { Actor } from '@/lib/auth';
+import { api, useData, Form, Modal, Notice, Heading, type Field } from './common';
+export default function Schedule({ actor }: { actor: Actor }) {
+  const { data, error, refresh } = useData<any[]>('appointments');
+  const clients = useData<any[]>('clients');
+  const staff = useData<any[]>('staff');
+  const [editing, setEditing] = useState<any>(null);
+  const [view, setView] = useState('Week');
+  const [anchor, setAnchor] = useState(DateTime.local().toISODate()!);
+  const [client, setClient] = useState('');
+  const [therapist, setTherapist] = useState('');
+  const [status, setStatus] = useState('');
+  const [actionError, setActionError] = useState('');
+  const date = DateTime.fromISO(anchor);
+  const start =
+    view === 'Month'
+      ? date.startOf('month').startOf('week')
+      : view === 'Week'
+        ? date.startOf('week')
+        : date.startOf('day');
+  const days = view === 'Month' ? 42 : view === 'Week' ? 7 : 1;
+  const shown = (data || []).filter(
+    (a) =>
+      (!client || a.clientId === client) &&
+      (!therapist || a.therapistId === therapist) &&
+      (!status || a.status === status),
+  );
+  const change = async (id: string, value: string) => {
+    if (!confirm(`Mark this appointment ${value.toLowerCase()}?`)) return;
+    try {
+      await api('appointments/' + id, 'PATCH', { status: value });
+      refresh();
+    } catch (e) {
+      setActionError((e as Error).message);
+    }
+  };
+  const timezone = editing?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const fields: Field[] = [
+    {
+      name: 'clientId',
+      label: 'Client',
+      required: true,
+      options: [
+        { value: '', label: 'Choose client…' },
+        ...(clients.data || [])
+          .filter((c) => c.status === 'Active')
+          .map((c) => ({ value: c.id, label: c.name })),
+      ],
+    },
+    {
+      name: 'therapistId',
+      label: 'Therapist (must be assigned)',
+      required: true,
+      options: [
+        { value: '', label: 'Choose therapist…' },
+        ...(staff.data || [])
+          .filter((s) => s.status === 'Active')
+          .map((s) => ({ value: s.id, label: s.name })),
+      ],
+    },
+    {
+      name: 'start',
+      label: 'Starts (in selected timezone)',
+      type: 'datetime-local',
+      required: true,
+    },
+    { name: 'end', label: 'Ends (in selected timezone)', type: 'datetime-local', required: true },
+    { name: 'timezone', label: 'IANA timezone', required: true, value: timezone },
+    {
+      name: 'location',
+      label: 'Location',
+      options: ['Home', 'Clinic', 'School', 'Community', 'Telehealth', 'Other'],
+    },
+    ...(!editing?.id
+      ? [
+          { name: 'frequency', label: 'Repeats', options: ['Once', 'Daily', 'Weekly'] },
+          { name: 'count', label: 'Occurrences (maximum 52)', type: 'number', value: 1 },
+        ]
+      : []),
+  ];
+  return (
+    <div className="stack">
+      <Heading
+        title="Schedule"
+        description="Make space for meaningful moments."
+        action={
+          actor.role === 'ADMIN' && (
+            <button className="primary" onClick={() => setEditing({})}>
+              + New appointment
+            </button>
+          )
+        }
+      />
+      <Notice error={error || actionError} />
+      <section className="card">
+        <div className="row between">
+          <div className="row">
+            <button
+              aria-label="Previous period"
+              onClick={() =>
+                setAnchor(
+                  date
+                    .minus(
+                      view === 'Month'
+                        ? { months: 1 }
+                        : view === 'Week'
+                          ? { weeks: 1 }
+                          : { days: 1 },
+                    )
+                    .toISODate()!,
+                )
+              }
+            >
+              ←
+            </button>
+            <h2 style={{ margin: 0 }}>{date.toFormat('MMMM yyyy')}</h2>
+            <button
+              aria-label="Next period"
+              onClick={() =>
+                setAnchor(
+                  date
+                    .plus(
+                      view === 'Month'
+                        ? { months: 1 }
+                        : view === 'Week'
+                          ? { weeks: 1 }
+                          : { days: 1 },
+                    )
+                    .toISODate()!,
+                )
+              }
+            >
+              →
+            </button>
+            <button onClick={() => setAnchor(DateTime.local().toISODate()!)}>Today</button>
+          </div>
+          <div className="tabs" style={{ border: 0, padding: 0 }}>
+            {['Day', 'Week', 'Month'].map((v) => (
+              <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          className="grid"
+          style={{ marginTop: 20, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}
+        >
+          <select
+            aria-label="Filter by client"
+            value={client}
+            onChange={(e) => setClient(e.target.value)}
+          >
+            <option value="">All clients</option>
+            {clients.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by therapist"
+            value={therapist}
+            onChange={(e) => setTherapist(e.target.value)}
+          >
+            <option value="">All therapists</option>
+            {Array.from(
+              new Map((data || []).map((a) => [a.therapistId, a.therapist])).values(),
+            ).map((s: any) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">All statuses</option>
+            {['Scheduled', 'In Progress', 'Completed', 'Cancelled', 'No Show'].map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+          <input
+            aria-label="Calendar date"
+            type="date"
+            value={anchor}
+            onChange={(e) => setAnchor(e.target.value)}
+          />
+        </div>
+      </section>
+      <div className="calendar" style={view === 'Day' ? { gridTemplateColumns: '1fr' } : undefined}>
+        {Array.from({ length: days }, (_, i) => start.plus({ days: i })).map((d) => (
+          <section className="calendar-cell" key={d.toISODate()}>
+            <strong className="small">{d.toFormat('ccc d')}</strong>
+            {shown
+              .filter((a) => DateTime.fromISO(a.start).toISODate() === d.toISODate())
+              .map((a) => (
+                <a href={'#appointment-' + a.id} className="calendar-event" key={a.id}>
+                  {DateTime.fromISO(a.start).toFormat('h:mm a')}
+                  <br />
+                  {a.client.name}
+                  <br />
+                  {a.status}
+                </a>
+              ))}
+          </section>
+        ))}
+      </div>
+      <section className="card">
+        <h2>Appointments in this view</h2>
+        {shown
+          .filter(
+            (a) =>
+              DateTime.fromISO(a.start) >= start &&
+              DateTime.fromISO(a.start) < start.plus({ days }),
+          )
+          .map((a) => (
+            <div className="list-row" id={'appointment-' + a.id} key={a.id}>
+              <div>
+                <strong>{a.client.name}</strong>
+                <p className="small muted" style={{ margin: '5px 0' }}>
+                  {new Date(a.start).toLocaleString()} – {new Date(a.end).toLocaleTimeString()}
+                  <br />
+                  {a.therapist.name} · {a.location} · {a.timezone}
+                </p>
+                <span className="badge">{a.status}</span>
+              </div>
+              <div className="row">
+                {a.status === 'Scheduled' && actor.id === a.therapistId && (
+                  <Link className="primary button" href={'/sessions?start=' + a.id}>
+                    Start session →
+                  </Link>
+                )}
+                {a.session && (
+                  <Link className="button" href={'/sessions/' + a.session.id}>
+                    Open session
+                  </Link>
+                )}
+                {actor.role === 'ADMIN' && a.status === 'Scheduled' && (
+                  <>
+                    <button onClick={() => setEditing(a)}>Reschedule</button>
+                    <button onClick={() => change(a.id, 'No Show')}>No show</button>
+                    <button className="danger" onClick={() => change(a.id, 'Cancelled')}>
+                      Cancel
+                    </button>
+                  </>
+                )}
+                {actor.role === 'ADMIN' && ['Cancelled', 'No Show'].includes(a.status) && (
+                  <button onClick={() => change(a.id, 'Scheduled')}>Restore</button>
+                )}
+              </div>
+            </div>
+          ))}
+        {!shown.some(
+          (a) =>
+            DateTime.fromISO(a.start) >= start && DateTime.fromISO(a.start) < start.plus({ days }),
+        ) && <p className="empty">No appointments in this view.</p>}
+      </section>
+      {editing && (
+        <Modal
+          title={editing.id ? 'Reschedule occurrence' : 'New appointment'}
+          close={() => setEditing(null)}
+        >
+          <Form
+            fields={fields}
+            initial={{
+              ...editing,
+              ...(editing.id
+                ? {
+                    start: DateTime.fromISO(editing.start, { zone: timezone }).toFormat(
+                      "yyyy-MM-dd'T'HH:mm",
+                    ),
+                    end: DateTime.fromISO(editing.end, { zone: timezone }).toFormat(
+                      "yyyy-MM-dd'T'HH:mm",
+                    ),
+                  }
+                : {}),
+            }}
+            submit="Save appointment"
+            onSave={async (d) => {
+              await api(
+                'appointments' + (editing.id ? '/' + editing.id : ''),
+                editing.id ? 'PATCH' : 'POST',
+                d,
+              );
+              setEditing(null);
+              refresh();
+            }}
+          />
+        </Modal>
+      )}
+    </div>
+  );
 }

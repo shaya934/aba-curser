@@ -1,0 +1,40 @@
+name: Application checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: aba
+          POSTGRES_PASSWORD: aba_local_only
+          POSTGRES_DB: aba
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U aba -d aba"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run setup
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: npx playwright install --with-deps chromium
+      - run: npm run typecheck && npm run build
+      - name: Run service, HTTP and browser acceptance tests
+        run: |
+          npm start > /tmp/brightpath-server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/login > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://localhost:3000/login > /dev/null
+          npm test
+          npm run test:e2e
+      - run: npm audit --omit=dev --audit-level=high

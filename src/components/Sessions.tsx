@@ -1,38 +1,625 @@
 'use client';
-import {useState,useEffect,useRef,useCallback} from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import type {Actor} from '@/lib/auth';
-import {api,useData,Form,Modal,Notice,Heading} from './common';
-export default function Sessions({id,actor}:{id?:string,actor:Actor}){
- const{data,error}=useData<any[]>('sessions');const[startError,setStartError]=useState('');
- useEffect(()=>{if(id)return;const start=new URLSearchParams(window.location.search).get('start');if(start)api('sessions/start','POST',{appointmentId:start}).then(s=>window.location.replace('/sessions/'+s.id)).catch(e=>setStartError(e.message));},[id]);
- if(id)return <SessionDetail key={id} id={id} actor={actor}/>;
- return <div className="stack"><Heading title="Sessions" description="Every session is a step forward. Keep the details close." action={<Link href="/schedule" className="primary button">Start from schedule →</Link>}/><Notice error={error||startError}/><section className="card">{data?.map(s=><Link className="list-row" key={s.id} href={'/sessions/'+s.id}><div><strong>{s.client.name}</strong><div className="small muted">{s.therapist.name} · {new Date(s.actualStart).toLocaleString()}</div></div><div className="row"><span className="badge">{s.status}</span><span>Open session →</span></div></Link>)}{data?.length===0&&<p className="empty">No sessions yet. Start a scheduled appointment to collect data.</p>}</section></div>
+import type { Actor } from '@/lib/auth';
+import { api, useData, Form, Modal, Notice, Heading } from './common';
+export default function Sessions({ id, actor }: { id?: string; actor: Actor }) {
+  const { data, error } = useData<any[]>('sessions');
+  const [startError, setStartError] = useState('');
+  useEffect(() => {
+    if (id) return;
+    const start = new URLSearchParams(window.location.search).get('start');
+    if (start)
+      api('sessions/start', 'POST', { appointmentId: start })
+        .then((s) => window.location.replace('/sessions/' + s.id))
+        .catch((e) => setStartError(e.message));
+  }, [id]);
+  if (id) return <SessionDetail key={id} id={id} actor={actor} />;
+  return (
+    <div className="stack">
+      <Heading
+        title="Sessions"
+        description="Every session is a step forward. Keep the details close."
+        action={
+          <Link href="/schedule" className="primary button">
+            Start from schedule →
+          </Link>
+        }
+      />
+      <Notice error={error || startError} />
+      <section className="card">
+        {data?.map((s) => (
+          <Link className="list-row" key={s.id} href={'/sessions/' + s.id}>
+            <div>
+              <strong>{s.client.name}</strong>
+              <div className="small muted">
+                {s.therapist.name} · {new Date(s.actualStart).toLocaleString()}
+              </div>
+            </div>
+            <div className="row">
+              <span className="badge">{s.status}</span>
+              <span>Open session →</span>
+            </div>
+          </Link>
+        ))}
+        {data?.length === 0 && (
+          <p className="empty">No sessions yet. Start a scheduled appointment to collect data.</p>
+        )}
+      </section>
+    </div>
+  );
 }
-function SessionDetail({id,actor}:{id:string,actor:Actor}){
- const{data:s,error,refresh}=useData<any>('sessions/'+id);const[actionError,setActionError]=useState('');const[busy,setBusy]=useState(false);const[pending,setPending]=useState<{url:string,method:string,body:any}|null>(null);const[review,setReview]=useState(false);const[amend,setAmend]=useState(false);const[note,setNote]=useState('');const[observations,setObservations]=useState('');const[saveStatus,setSaveStatus]=useState('Saved');const noteRef=useRef({note:'',observations:'',revision:0,initialized:false,dirty:false,saving:false});
- const editable=s?.status==='In Progress'&&(actor.role==='ADMIN'||s?.therapistId===actor.id);
- useEffect(()=>{if(s&&!noteRef.current.initialized){setNote(s.note);setObservations(s.observations);noteRef.current={note:s.note,observations:s.observations,revision:s.noteRevision,initialized:true,dirty:false,saving:false};}},[s]);
- const flush=useCallback(async()=>{const r=noteRef.current;if(!r.initialized||!r.dirty||r.saving)return;r.saving=true;const saving={note:r.note,observations:r.observations,noteRevision:r.revision};setSaveStatus('Saving…');try{const result=await api(`sessions/${id}/notes`,'PATCH',saving);r.revision=result.noteRevision;r.dirty=r.note!==saving.note||r.observations!==saving.observations;setSaveStatus(r.dirty?'Unsaved changes':'Saved');}catch(e){setSaveStatus('Save failed — retry');setActionError((e as Error).message);}finally{r.saving=false;}},[id]);
- useEffect(()=>{if(!editable)return;const timer=setTimeout(()=>void flush(),650);return()=>clearTimeout(timer);},[note,observations,editable,flush]);
- useEffect(()=>{if(!editable)return;const timer=setInterval(()=>{if(noteRef.current.dirty&&!noteRef.current.saving)void flush();},4000);return()=>clearInterval(timer);},[editable,flush]);
- useEffect(()=>{const unload=(e:BeforeUnloadEvent)=>{if(noteRef.current.dirty||pending||busy){e.preventDefault();e.returnValue='';}};const navigate=(e:MouseEvent)=>{if((noteRef.current.dirty||pending||busy)&&(e.target as HTMLElement).closest('a[href]')){e.preventDefault();setActionError('Wait for your changes to save or retry the pending action before leaving.');}};window.addEventListener('beforeunload',unload);document.addEventListener('click',navigate,true);return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',navigate,true);};},[pending,busy]);
- const mutate=async(url:string,method='POST',body:any={})=>{setBusy(true);setActionError('');try{await api(url,method,body);setPending(null);refresh();}catch(e){setActionError((e as Error).message);setPending({url,method,body});}finally{setBusy(false);}};
- const record=(targetId:string,kind:string,extra:any={})=>mutate(`sessions/${id}/entries`,'POST',{targetId,kind,idempotencyKey:crypto.randomUUID(),...extra});
- if(error)return <Notice error={error}/>;if(!s)return <p role="status">Loading session workspace…</p>;
- return <div className="stack"><Heading title={s.client.name} description={`${s.therapist.name} · ${s.appointment.location} · ${new Date(s.actualStart).toLocaleString()}`} action={<span className="badge">{s.status}</span>}/><section className="card row between"><div><strong>Session workspace</strong><div className="small muted">Scheduled {new Date(s.appointment.start).toLocaleTimeString()} – {new Date(s.appointment.end).toLocaleTimeString()} · {s.appointment.timezone}</div><div className="small muted">Session ID: {s.id}</div></div><div role="status" className={saveStatus==='Saved'?'success':'muted'}>{saveStatus==='Saved'?'✓ ':''}{saveStatus}</div></section><Notice error={actionError}/>{pending&&<div className="card row"><p className="muted">An action is pending. Retrying uses the same request key to prevent duplicates.</p><button disabled={busy} className="primary" onClick={()=>mutate(pending.url,pending.method,pending.body)}>Retry action</button><button onClick={()=>{if(confirm('Discard the local pending action? Refresh the session to check whether it was already saved.')){setPending(null);refresh();}}}>Discard pending action</button></div>}<div className="stats">{[['Trials',s.summary.trials],['Successful trials',s.summary.trialPercent===null?'—':s.summary.trialPercent.toFixed(1)+'%'],['Frequency',s.summary.frequency],['Duration',(s.summary.durationMs/1000).toFixed(1)+' s']].map(([label,value])=><div key={label} className="card"><div className="muted small">{label}</div><div className="stat-value" style={{fontSize:26}}>{value}</div></div>)}</div>
- {editable&&s.goals.map((g:any)=><section className="card" key={g.id}><div className="eyebrow">{g.domain}</div><h2>{g.name}</h2>{g.targets.map((t:any)=><TargetCollector key={t.id} target={t} entries={s.entries.filter((e:any)=>e.targetId===t.id&&!e.voidedAt)} timer={s.timers.find((r:any)=>r.targetId===t.id)} disabled={busy||!!pending} record={(kind,extra)=>record(t.id,kind,extra)} timerAction={action=>mutate(`sessions/${id}/timers`,'POST',{targetId:t.id,action,idempotencyKey:crypto.randomUUID()})}/>)}</section>)}
- {editable&&!s.goals.some((g:any)=>g.targets.length)&&<div className="card empty">No active targets. Ask your assigned BCBA to activate targets before collecting data.</div>}
- <section className="card"><h2>Session documentation</h2><p className="muted">Record only what you observed. Include activities, participation, client responses, progress, and challenges.</p><div className="field"><label htmlFor="session-note">Therapist note</label><textarea id="session-note" readOnly={!editable} maxLength={5000} value={note} onChange={e=>{setNote(e.target.value);noteRef.current.note=e.target.value;noteRef.current.dirty=true;setSaveStatus('Unsaved changes');}}/></div><div className="field"><label htmlFor="session-observations">Observed behaviors and events</label><textarea id="session-observations" readOnly={!editable} maxLength={5000} value={observations} onChange={e=>{setObservations(e.target.value);noteRef.current.observations=e.target.value;noteRef.current.dirty=true;setSaveStatus('Unsaved changes');}}/></div>{editable&&<div className="row"><button disabled={busy} onClick={()=>void flush()}>Save notes now</button><span className="small muted">{saveStatus}</span></div>}{s.signedAt&&<p className="small muted">Attested by {s.therapist.name} · {new Date(s.signedAt).toLocaleString()}</p>}</section>
- <section className="card"><h2>Recorded measurements</h2>{s.entries.filter((e:any)=>!e.voidedAt).map((e:any)=><div className="list-row" key={e.id}><div><strong>{e.targetSnapshot.name}</strong><div className="small muted">{e.kind} {e.kind==='Percentage'?`${e.numerator}/${e.denominator} (${(100*e.numerator/e.denominator).toFixed(1)}%)`:e.kind==='Duration'?`${(e.durationMs/1000).toFixed(1)} seconds`:e.kind==='Frequency'?`+${e.value}`:''} · {new Date(e.recordedAt).toLocaleTimeString()}</div></div>{editable&&<button className="danger" disabled={busy||!!pending} onClick={()=>{if(confirm('Void this measurement? Its audit history will be retained.'))void mutate(`sessions/${id}/entries/${e.id}`,'DELETE');}}>Undo</button>}</div>)}{!s.entries.some((e:any)=>!e.voidedAt)&&<p className="empty">No data recorded yet.</p>}</section>
- <section className="card"><h2>Session reports</h2>{s.reports.map((r:any)=><div className="list-row" key={r.id}><span>Session PDF · version {r.version} <span className="badge">{r.status}</span></span>{r.status==='Ready'?<a href={'/api/reports/'+r.id} className="button">Download PDF ↓</a>:<button disabled={busy} onClick={()=>mutate(`reports/${r.id}/retry`)}>Retry generation</button>}</div>)}{!s.reports.length&&<p className="muted">A PDF is created automatically when the session is finalized.</p>}{s.amendments.map((a:any)=><div className="list-row" key={a.id}><div><strong>Amendment · version {a.version}</strong><p>{a.reason}</p><p>{a.note}</p></div></div>)}</section>
- {editable&&<button className="primary trial" disabled={busy||!!pending||saveStatus!=='Saved'||!!s.timers.length} onClick={()=>setReview(true)}>Review & complete session →</button>}{s.status==='Submitted'&&['ADMIN','BCBA'].includes(actor.role)&&s.therapistId!==actor.id&&<button className="primary" disabled={busy} onClick={()=>{if(confirm('I reviewed the recorded data and documentation and approve this session.'))void mutate(`sessions/${id}/approve`);}}>Approve & finalize session</button>}{s.status==='Finalized'&&['ADMIN','BCBA'].includes(actor.role)&&<button onClick={()=>setAmend(true)}>Create versioned amendment</button>}
- {review&&<Modal title="Review & complete session" close={()=>setReview(false)}><p>Review all measurements and notes before signing. Completed sessions become read-only.</p><p>{s.summary.entries} measurements · {s.summary.trials} trials · {s.summary.frequency} events</p><p className="muted">{note}</p><Form fields={[]} submit="Attest & complete session" onSave={async()=>{await api(`sessions/${id}/finalize`,'POST',{attest:true,noteRevision:noteRef.current.revision});setReview(false);refresh();}}><div className="field"><label className="row"><input type="checkbox" required style={{width:22,height:22}}/> I attest that this documentation accurately reflects the session.</label></div></Form></Modal>}
- {amend&&<Modal title="Amend finalized documentation" close={()=>setAmend(false)}><p className="muted">The original signed report is preserved. This amendment creates a new PDF version.</p><Form fields={[{name:'reason',label:'Reason for amendment',type:'textarea',required:true},{name:'note',label:'Amended note',type:'textarea',required:true}]} initial={{note:s.amendments[0]?.note||s.note}} submit="Save amendment" onSave={async d=>{await api(`sessions/${id}/amendments`,'POST',{...d,version:s.version});setAmend(false);refresh();}}/></Modal>}
- </div>
+function SessionDetail({ id, actor }: { id: string; actor: Actor }) {
+  const { data: s, error, refresh } = useData<any>('sessions/' + id);
+  const [actionError, setActionError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<{ url: string; method: string; body: any } | null>(null);
+  const [review, setReview] = useState(false);
+  const [amend, setAmend] = useState(false);
+  const [note, setNote] = useState('');
+  const [observations, setObservations] = useState('');
+  const [saveStatus, setSaveStatus] = useState('Saved');
+  const noteRef = useRef({
+    note: '',
+    observations: '',
+    revision: 0,
+    initialized: false,
+    dirty: false,
+    saving: false,
+  });
+  const editable = s?.status === 'In Progress' && s?.therapistId === actor.id;
+  useEffect(() => {
+    if (s && !noteRef.current.initialized) {
+      setNote(s.note);
+      setObservations(s.observations);
+      noteRef.current = {
+        note: s.note,
+        observations: s.observations,
+        revision: s.noteRevision,
+        initialized: true,
+        dirty: false,
+        saving: false,
+      };
+    }
+  }, [s]);
+  const flush = useCallback(async () => {
+    const r = noteRef.current;
+    if (!r.initialized || !r.dirty || r.saving) return;
+    r.saving = true;
+    const saving = { note: r.note, observations: r.observations, noteRevision: r.revision };
+    setSaveStatus('Saving…');
+    try {
+      const result = await api(`sessions/${id}/notes`, 'PATCH', saving);
+      r.revision = result.noteRevision;
+      r.dirty = r.note !== saving.note || r.observations !== saving.observations;
+      setSaveStatus(r.dirty ? 'Unsaved changes' : 'Saved');
+    } catch (e) {
+      setSaveStatus('Save failed — retry');
+      setActionError((e as Error).message);
+    } finally {
+      r.saving = false;
+    }
+  }, [id]);
+  useEffect(() => {
+    if (!editable) return;
+    const timer = setTimeout(() => void flush(), 650);
+    return () => clearTimeout(timer);
+  }, [note, observations, editable, flush]);
+  useEffect(() => {
+    if (!editable) return;
+    const timer = setInterval(() => {
+      if (noteRef.current.dirty && !noteRef.current.saving) void flush();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [editable, flush]);
+  useEffect(() => {
+    const unload = (e: BeforeUnloadEvent) => {
+      if (noteRef.current.dirty || pending || busy) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    const navigate = (e: MouseEvent) => {
+      if (
+        (noteRef.current.dirty || pending || busy) &&
+        (e.target as HTMLElement).closest('a[href]')
+      ) {
+        e.preventDefault();
+        setActionError('Wait for your changes to save or retry the pending action before leaving.');
+      }
+    };
+    window.addEventListener('beforeunload', unload);
+    document.addEventListener('click', navigate, true);
+    return () => {
+      window.removeEventListener('beforeunload', unload);
+      document.removeEventListener('click', navigate, true);
+    };
+  }, [pending, busy]);
+  const mutate = async (url: string, method = 'POST', body: any = {}) => {
+    setBusy(true);
+    setActionError('');
+    try {
+      await api(url, method, body);
+      setPending(null);
+      refresh();
+    } catch (e) {
+      setActionError((e as Error).message);
+      setPending({ url, method, body });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const record = (targetId: string, kind: string, extra: any = {}) =>
+    mutate(`sessions/${id}/entries`, 'POST', {
+      targetId,
+      kind,
+      idempotencyKey: crypto.randomUUID(),
+      ...extra,
+    });
+  if (error) return <Notice error={error} />;
+  if (!s) return <p role="status">Loading session workspace…</p>;
+  return (
+    <div className="stack">
+      <Heading
+        title={s.client.name}
+        description={`${s.therapist.name} · ${s.appointment.location} · ${new Date(s.actualStart).toLocaleString()}`}
+        action={<span className="badge">{s.status}</span>}
+      />
+      <section className="card row between">
+        <div>
+          <strong>Session workspace</strong>
+          <div className="small muted">
+            Scheduled {new Date(s.appointment.start).toLocaleTimeString()} –{' '}
+            {new Date(s.appointment.end).toLocaleTimeString()} · {s.appointment.timezone}
+          </div>
+          <div className="small muted">Session ID: {s.id}</div>
+        </div>
+        <div role="status" className={saveStatus === 'Saved' ? 'success' : 'muted'}>
+          {saveStatus === 'Saved' ? '✓ ' : ''}
+          {saveStatus}
+        </div>
+      </section>
+      <Notice error={actionError} />
+      {pending && (
+        <div className="card row">
+          <p className="muted">
+            An action is pending. Retrying uses the same request key to prevent duplicates.
+          </p>
+          <button
+            disabled={busy}
+            className="primary"
+            onClick={() => mutate(pending.url, pending.method, pending.body)}
+          >
+            Retry action
+          </button>
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  'Discard the local pending action? Refresh the session to check whether it was already saved.',
+                )
+              ) {
+                setPending(null);
+                refresh();
+              }
+            }}
+          >
+            Discard pending action
+          </button>
+        </div>
+      )}
+      <div className="stats">
+        {[
+          ['Trials', s.summary.trials],
+          [
+            'Successful trials',
+            s.summary.trialPercent === null ? '—' : s.summary.trialPercent.toFixed(1) + '%',
+          ],
+          ['Frequency', s.summary.frequency],
+          ['Duration', (s.summary.durationMs / 1000).toFixed(1) + ' s'],
+        ].map(([label, value]) => (
+          <div key={label} className="card">
+            <div className="muted small">{label}</div>
+            <div className="stat-value" style={{ fontSize: 26 }}>
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
+      {editable &&
+        s.goals.map((g: any) => (
+          <section className="card" key={g.id}>
+            <div className="eyebrow">{g.domain}</div>
+            <h2>{g.name}</h2>
+            {g.targets.map((t: any) => (
+              <TargetCollector
+                key={t.id}
+                target={t}
+                entries={s.entries.filter((e: any) => e.targetId === t.id && !e.voidedAt)}
+                timer={s.timers.find((r: any) => r.targetId === t.id)}
+                disabled={busy || !!pending}
+                record={(kind, extra) => record(t.id, kind, extra)}
+                timerAction={(action) =>
+                  mutate(`sessions/${id}/timers`, 'POST', {
+                    targetId: t.id,
+                    action,
+                    idempotencyKey: crypto.randomUUID(),
+                  })
+                }
+              />
+            ))}
+          </section>
+        ))}
+      {editable &&
+        s.timers
+          .filter(
+            (timer: any) =>
+              !s.goals.some((g: any) => g.targets.some((t: any) => t.id === timer.targetId)),
+          )
+          .map((timer: any) => (
+            <section className="card" key={timer.id}>
+              <h2>Running timer: {timer.targetSnapshot.name}</h2>
+              <p className="muted">
+                This definition changed during the session. Stop the timer to preserve its original
+                measurement version.
+              </p>
+              <button
+                className="danger"
+                disabled={busy || !!pending}
+                onClick={() =>
+                  mutate(`sessions/${id}/timers`, 'POST', {
+                    targetId: timer.targetId,
+                    action: 'stop',
+                    idempotencyKey: crypto.randomUUID(),
+                  })
+                }
+              >
+                Stop inactive target timer
+              </button>
+            </section>
+          ))}
+      {editable && !s.goals.some((g: any) => g.targets.length) && (
+        <div className="card empty">
+          No active targets. Ask your assigned BCBA to activate targets before collecting data.
+        </div>
+      )}
+      <section className="card">
+        <h2>Session documentation</h2>
+        <p className="muted">
+          Record only what you observed. Include activities, participation, client responses,
+          progress, and challenges.
+        </p>
+        <div className="field">
+          <label htmlFor="session-note">Therapist note</label>
+          <textarea
+            id="session-note"
+            readOnly={!editable}
+            maxLength={5000}
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value);
+              noteRef.current.note = e.target.value;
+              noteRef.current.dirty = true;
+              setSaveStatus('Unsaved changes');
+            }}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="session-observations">Observed behaviors and events</label>
+          <textarea
+            id="session-observations"
+            readOnly={!editable}
+            maxLength={5000}
+            value={observations}
+            onChange={(e) => {
+              setObservations(e.target.value);
+              noteRef.current.observations = e.target.value;
+              noteRef.current.dirty = true;
+              setSaveStatus('Unsaved changes');
+            }}
+          />
+        </div>
+        {editable && (
+          <div className="row">
+            <button disabled={busy} onClick={() => void flush()}>
+              Save notes now
+            </button>
+            <span className="small muted">{saveStatus}</span>
+          </div>
+        )}
+        {s.signedAt && (
+          <p className="small muted">
+            Attested by {s.therapist.name} · {new Date(s.signedAt).toLocaleString()}
+          </p>
+        )}
+      </section>
+      <section className="card">
+        <h2>Recorded measurements</h2>
+        {s.entries
+          .filter((e: any) => !e.voidedAt)
+          .map((e: any) => (
+            <div className="list-row" key={e.id}>
+              <div>
+                <strong>{e.targetSnapshot.name}</strong>
+                <div className="small muted">
+                  {e.kind}{' '}
+                  {e.kind === 'Percentage'
+                    ? `${e.numerator}/${e.denominator} (${((100 * e.numerator) / e.denominator).toFixed(1)}%)`
+                    : e.kind === 'Duration'
+                      ? `${(e.durationMs / 1000).toFixed(1)} seconds`
+                      : e.kind === 'Frequency'
+                        ? `+${e.value}`
+                        : ''}{' '}
+                  · {new Date(e.recordedAt).toLocaleTimeString()}
+                </div>
+              </div>
+              {editable && (
+                <button
+                  className="danger"
+                  disabled={busy || !!pending}
+                  onClick={() => {
+                    if (confirm('Void this measurement? Its audit history will be retained.'))
+                      void mutate(`sessions/${id}/entries/${e.id}`, 'DELETE');
+                  }}
+                >
+                  Undo
+                </button>
+              )}
+            </div>
+          ))}
+        {!s.entries.some((e: any) => !e.voidedAt) && <p className="empty">No data recorded yet.</p>}
+      </section>
+      <section className="card">
+        <h2>Session reports</h2>
+        {s.reports.map((r: any) => (
+          <div className="list-row" key={r.id}>
+            <span>
+              Session PDF · version {r.version} <span className="badge">{r.status}</span>
+            </span>
+            {r.status === 'Ready' ? (
+              <a href={'/api/reports/' + r.id} className="button">
+                Download PDF ↓
+              </a>
+            ) : (
+              <button disabled={busy} onClick={() => mutate(`reports/${r.id}/retry`)}>
+                Retry generation
+              </button>
+            )}
+          </div>
+        ))}
+        {!s.reports.length && (
+          <p className="muted">A PDF is created automatically when the session is finalized.</p>
+        )}
+        {s.amendments.map((a: any) => (
+          <div className="list-row" key={a.id}>
+            <div>
+              <strong>Amendment · version {a.version}</strong>
+              <p>{a.reason}</p>
+              <p>{a.note}</p>
+            </div>
+          </div>
+        ))}
+      </section>
+      {editable && (
+        <button
+          className="primary trial"
+          disabled={busy || !!pending || saveStatus !== 'Saved' || !!s.timers.length}
+          onClick={() => setReview(true)}
+        >
+          Review & complete session →
+        </button>
+      )}
+      {s.status === 'Submitted' &&
+        ['ADMIN', 'BCBA'].includes(actor.role) &&
+        s.therapistId !== actor.id && (
+          <button
+            className="primary"
+            disabled={busy}
+            onClick={() => {
+              if (
+                confirm('I reviewed the recorded data and documentation and approve this session.')
+              )
+                void mutate(`sessions/${id}/approve`);
+            }}
+          >
+            Approve & finalize session
+          </button>
+        )}
+      {s.status === 'Finalized' && ['ADMIN', 'BCBA'].includes(actor.role) && (
+        <button onClick={() => setAmend(true)}>Create versioned amendment</button>
+      )}
+      {review && (
+        <Modal title="Review & complete session" close={() => setReview(false)}>
+          <p>
+            Review all measurements and notes before signing. Completed sessions become read-only.
+          </p>
+          <p>
+            {s.summary.entries} measurements · {s.summary.trials} trials · {s.summary.frequency}{' '}
+            events
+          </p>
+          <p className="muted">{note}</p>
+          <Form
+            fields={[]}
+            submit="Attest & complete session"
+            onSave={async () => {
+              await api(`sessions/${id}/finalize`, 'POST', {
+                attest: true,
+                noteRevision: noteRef.current.revision,
+              });
+              setReview(false);
+              refresh();
+            }}
+          >
+            <div className="field">
+              <label className="row">
+                <input type="checkbox" required style={{ width: 22, height: 22 }} /> I attest that
+                this documentation accurately reflects the session.
+              </label>
+            </div>
+          </Form>
+        </Modal>
+      )}
+      {amend && (
+        <Modal title="Amend finalized documentation" close={() => setAmend(false)}>
+          <p className="muted">
+            The original signed report is preserved. This amendment creates a new PDF version.
+          </p>
+          <Form
+            fields={[
+              { name: 'reason', label: 'Reason for amendment', type: 'textarea', required: true },
+              { name: 'note', label: 'Amended note', type: 'textarea', required: true },
+            ]}
+            initial={{ note: s.amendments[0]?.note || s.note }}
+            submit="Save amendment"
+            onSave={async (d) => {
+              await api(`sessions/${id}/amendments`, 'POST', { ...d, version: s.version });
+              setAmend(false);
+              refresh();
+            }}
+          />
+        </Modal>
+      )}
+    </div>
+  );
 }
-function TargetCollector({target:t,entries,timer,disabled,record,timerAction}:{target:any,entries:any[],timer:any,disabled:boolean,record:(kind:string,extra?:any)=>void,timerAction:(action:string)=>void}){
- const[numerator,setNumerator]=useState('');const[denominator,setDenominator]=useState('');const[clock,setClock]=useState(Date.now());useEffect(()=>{if(!timer)return;const id=setInterval(()=>setClock(Date.now()),250);return()=>clearInterval(id);},[timer]);
- const actions:Record<string,[string,string,string][]>= {'Correct/Incorrect':[['Correct','+ Correct','correct'],['Incorrect','− Incorrect','incorrect'],['Prompted','P Prompted','prompted']],'Independent/Prompted':[['Independent','✓ Independent','correct'],['Prompted','P Prompted','prompted']],'Yes/No':[['Yes','✓ Yes','correct'],['No','− No','incorrect']]};
- return <div style={{borderTop:'1px solid var(--line)',padding:'22px 0'}}><div className="row between"><div><h3>{t.name}</h3><p className="small muted">{t.measurement} · {t.masteryCriteria}</p></div><span className="badge">{entries.length} entries</span></div><div className="row">{actions[t.measurement]?.map(([kind,label,color])=><button key={kind} className={'trial '+color} disabled={disabled} onClick={()=>record(kind)}>{label}</button>)}{t.measurement==='Frequency'&&<><span className="stat-value" style={{minWidth:60}}>{entries.reduce((n,e)=>n+e.value,0)}</span><button className="primary trial" disabled={disabled} onClick={()=>record('Frequency',{value:1})}>+ Count event</button></>}{t.measurement==='Duration'&&<><strong className="stat-value" style={{fontSize:28}}>{timer?Math.max(0,(clock-new Date(timer.startedAt).getTime())/1000).toFixed(1):'0.0'} s</strong><button className={timer?'danger trial':'primary trial'} disabled={disabled} onClick={()=>timerAction(timer?'stop':'start')}>{timer?'■ Stop timer':'▶ Start timer'}</button><p className="small muted">Running timers are saved on the server and survive navigation.</p></>}{t.measurement==='Percentage'&&<form className="row" onSubmit={e=>{e.preventDefault();record('Percentage',{numerator:Number(numerator),denominator:Number(denominator)});}}><div><label htmlFor={'num-'+t.id}>Successful responses</label><input id={'num-'+t.id} type="number" min={0} max={100000} required value={numerator} onChange={e=>setNumerator(e.target.value)}/></div><div><label htmlFor={'den-'+t.id}>Total opportunities</label><input id={'den-'+t.id} type="number" min={1} max={100000} required value={denominator} onChange={e=>setDenominator(e.target.value)}/></div><button className="primary trial" disabled={disabled}>Save {Number(denominator)>0?(100*Number(numerator)/Number(denominator)).toFixed(1)+'%':'percentage'}</button></form>}</div></div>
+function TargetCollector({
+  target: t,
+  entries,
+  timer,
+  disabled,
+  record,
+  timerAction,
+}: {
+  target: any;
+  entries: any[];
+  timer: any;
+  disabled: boolean;
+  record: (kind: string, extra?: any) => void;
+  timerAction: (action: string) => void;
+}) {
+  const [numerator, setNumerator] = useState('');
+  const [denominator, setDenominator] = useState('');
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    if (!timer) return;
+    const id = setInterval(() => setClock(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [timer]);
+  const actions: Record<string, [string, string, string][]> = {
+    'Correct/Incorrect': [
+      ['Correct', '+ Correct', 'correct'],
+      ['Incorrect', '− Incorrect', 'incorrect'],
+      ['Prompted', 'P Prompted', 'prompted'],
+    ],
+    'Independent/Prompted': [
+      ['Independent', '✓ Independent', 'correct'],
+      ['Prompted', 'P Prompted', 'prompted'],
+    ],
+    'Yes/No': [
+      ['Yes', '✓ Yes', 'correct'],
+      ['No', '− No', 'incorrect'],
+    ],
+  };
+  return (
+    <div style={{ borderTop: '1px solid var(--line)', padding: '22px 0' }}>
+      <div className="row between">
+        <div>
+          <h3>{t.name}</h3>
+          <p className="small muted">
+            {t.measurement} · {t.masteryCriteria}
+          </p>
+        </div>
+        <span className="badge">{entries.length} entries</span>
+      </div>
+      <div className="row">
+        {actions[t.measurement]?.map(([kind, label, color]) => (
+          <button
+            key={kind}
+            className={'trial ' + color}
+            disabled={disabled}
+            onClick={() => record(kind)}
+          >
+            {label}
+          </button>
+        ))}
+        {t.measurement === 'Frequency' && (
+          <>
+            <span className="stat-value" style={{ minWidth: 60 }}>
+              {entries.reduce((n, e) => n + e.value, 0)}
+            </span>
+            <button
+              className="primary trial"
+              disabled={disabled}
+              onClick={() => record('Frequency', { value: 1 })}
+            >
+              + Count event
+            </button>
+          </>
+        )}
+        {t.measurement === 'Duration' && (
+          <>
+            <strong className="stat-value" style={{ fontSize: 28 }}>
+              {timer
+                ? Math.max(0, (clock - new Date(timer.startedAt).getTime()) / 1000).toFixed(1)
+                : '0.0'}{' '}
+              s
+            </strong>
+            <button
+              className={timer ? 'danger trial' : 'primary trial'}
+              disabled={disabled}
+              onClick={() => timerAction(timer ? 'stop' : 'start')}
+            >
+              {timer ? '■ Stop timer' : '▶ Start timer'}
+            </button>
+            <p className="small muted">
+              Running timers are saved on the server and survive navigation.
+            </p>
+          </>
+        )}
+        {t.measurement === 'Percentage' && (
+          <form
+            className="row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              record('Percentage', {
+                numerator: Number(numerator),
+                denominator: Number(denominator),
+              });
+            }}
+          >
+            <div>
+              <label htmlFor={'num-' + t.id}>Successful responses</label>
+              <input
+                id={'num-' + t.id}
+                type="number"
+                min={0}
+                max={100000}
+                required
+                value={numerator}
+                onChange={(e) => setNumerator(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor={'den-' + t.id}>Total opportunities</label>
+              <input
+                id={'den-' + t.id}
+                type="number"
+                min={1}
+                max={100000}
+                required
+                value={denominator}
+                onChange={(e) => setDenominator(e.target.value)}
+              />
+            </div>
+            <button className="primary trial" disabled={disabled}>
+              Save{' '}
+              {Number(denominator) > 0
+                ? ((100 * Number(numerator)) / Number(denominator)).toFixed(1) + '%'
+                : 'percentage'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
 }

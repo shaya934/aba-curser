@@ -1,5 +1,6 @@
 generator client {
  provider = "prisma-client-js"
+ output = "../node_modules/.prisma/client"
  engineType = "client"
 }
 datasource db {
@@ -17,6 +18,8 @@ model Organization {
  name String
  timezone String @default("America/New_York")
  requireApproval Boolean @default(false)
+ logoKey String?
+ logoMimeType String?
  createdAt DateTime @default(now())
  users User[]
  clients Client[]
@@ -263,5 +266,6 @@ model SessionTimer {
  session ClinicalSession @relation(fields: [sessionId], references: [id])
  target Target @relation(fields: [targetId], references: [id])
  startedAt DateTime @default(now())
+ targetSnapshot Json
  @@unique([sessionId, targetId])
 }
