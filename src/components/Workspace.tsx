@@ -1,0 +1,167 @@
+'use client';
+import { useEffect, useState } from 'react';
+import {
+  Users,
+  UserRound,
+  CalendarDays,
+  ClipboardCheck,
+  ArrowUpRight,
+  Plus,
+  Sun,
+} from 'lucide-react';
+import Link from 'next/link';
+import Sessions from './Sessions';
+import Goals from './Goals';
+import Schedule from './Schedule';
+import Profiles from './Profiles';
+import Documents from './Documents';
+import Settings from './Settings';
+import type { Actor } from '@/lib/auth';
+export default function Workspace({ section, actor }: { section: string[]; actor: Actor }) {
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (section.length) return;
+    fetch('/api/dashboard')
+      .then(async (r) => {
+        if (!r.ok) throw Error('Could not load workspace');
+        setData(await r.json());
+      })
+      .catch((e) => setError(e.message));
+  }, [section.length]);
+  if (section[0] === 'clients' || section[0] === 'staff')
+    return <Profiles kind={section[0]} id={section[1]} actor={actor} />;
+  if (section[0] === 'sessions') return <Sessions actor={actor} id={section[1]} />;
+  if (section[0] === 'goals') return <Goals actor={actor} />;
+  if (section[0] === 'schedule') return <Schedule actor={actor} />;
+  if (section[0] === 'documents') return <Documents actor={actor} />;
+  if (section[0] === 'settings') return <Settings />;
+  if (error)
+    return (
+      <p role="alert" className="error">
+        {error}
+      </p>
+    );
+  if (!data) return <p role="status">Loading your workspace…</p>;
+  return (
+    <div className="stack">
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">YOUR DAY, AT A GLANCE</div>
+          <h1>
+            Hello, {actor.name.split(' ')[0]}{' '}
+            <Sun size={26} style={{ display: 'inline', color: '#bf8b32' }} />
+          </h1>
+          <p className="muted">A fresh start for meaningful progress.</p>
+        </div>
+        <Link className="primary button" href="/schedule">
+          <Plus size={18} />
+          View schedule
+        </Link>
+      </div>
+      <div className="stats dashboard-stats">
+        {[
+          ['Active clients', data.clients, Users, '/clients'],
+          [
+            actor.role === 'ADMIN' ? 'Active staff' : 'My schedule',
+            data.staff ?? data.appointments.length,
+            UserRound,
+            actor.role === 'ADMIN' ? '/staff' : '/schedule',
+          ],
+          ['Scheduled today', data.metrics.scheduled, CalendarDays, '/schedule'],
+          ['Completed today', data.metrics.completed, ClipboardCheck, '/sessions'],
+          ['Cancelled / no show today', data.metrics.cancelled, CalendarDays, '/schedule'],
+          ['Documentation to finish', data.metrics.missingNotes, ClipboardCheck, '/sessions'],
+        ].map(([label, value, Icon, url]: any) => (
+          <Link href={url} className="card" key={label}>
+            <div className="row between">
+              <span className="stat-icon">
+                <Icon size={22} />
+              </span>
+              <ArrowUpRight size={17} />
+            </div>
+            <div className="stat-value">{value}</div>
+            <div className="muted">{label}</div>
+          </Link>
+        ))}
+      </div>
+      <div className="hero">
+        <div>
+          <div className="eyebrow">SMALL STEPS. MEANINGFUL CHANGE.</div>
+          <h2>More time for the moments that matter.</h2>
+          <p className="muted">
+            Your clients, care team, and clinical records — together in one calm workspace.
+          </p>
+        </div>
+        <HeartArtwork />
+      </div>
+      <div className="grid">
+        <section className="card">
+          <div className="row between">
+            <h2>Upcoming appointments</h2>
+            <Link href="/schedule" className="small">
+              View schedule →
+            </Link>
+          </div>
+          {data.appointments
+            .filter((a: any) => a.status === 'Scheduled' && new Date(a.end) > new Date())
+            .slice(0, 5)
+            .map((a: any) => (
+              <div key={a.id} className="list-row">
+                <div>
+                  <strong>{a.client.name}</strong>
+                  <div className="small muted">
+                    {new Date(a.start).toLocaleString()} · {a.location}
+                  </div>
+                </div>
+                <Link className="button" href="/schedule">
+                  Open
+                </Link>
+              </div>
+            ))}
+          {!data.appointments.length && (
+            <div className="empty">Your schedule is clear. Add an appointment to get started.</div>
+          )}
+        </section>
+        <section className="card">
+          <h2>Documentation to finish</h2>
+          {data.sessions
+            .filter((s: any) => s.status !== 'Finalized')
+            .map((s: any) => (
+              <Link href={`/sessions/${s.id}`} key={s.id} className="list-row">
+                <span>
+                  {s.status === 'In Progress' ? 'Session in progress' : 'Awaiting review'}
+                </span>
+                <span className="button">Continue →</span>
+              </Link>
+            ))}
+          {!data.sessions.some((s: any) => s.status !== 'Finalized') && (
+            <div className="empty">
+              <ClipboardCheck size={32} style={{ margin: '0 auto 12px', color: '#087e81' }} />
+              All caught up. Your next chapter starts here.
+            </div>
+          )}
+        </section>
+      </div>
+      <p className="small muted">
+        {data.organization.name} · All times shown in your browser’s local time unless a timezone is
+        specified.
+      </p>
+    </div>
+  );
+}
+function HeartArtwork() {
+  return (
+    <svg width="140" height="110" viewBox="0 0 140 110" aria-hidden="true">
+      <circle cx="72" cy="55" r="50" fill="#d2ebe4" />
+      <path d="M70 83 35 49C13 22 53 9 70 37 87 9 128 23 105 49Z" fill="#6aaea0" />
+      <path
+        d="M48 59h15l7-15 9 28 7-13h14"
+        fill="none"
+        stroke="white"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
