@@ -11,6 +11,17 @@ The repository now supports Vercel's Node.js functions, pooled PostgreSQL and pr
 
 The S3 backend encrypts every file/PDF/logo with AES-256-GCM before uploading. Bucket objects contain ciphertext only, under random IDs; names and clinical details are not sent as object metadata. Downloads pass through the authenticated application and its tenant/assignment checks. No public or presigned file URLs are exposed. Keep `STORAGE_KEY` backed up separately: replacing it makes existing documents unreadable without a planned re-encryption migration.
 
+
+## Existing Supabase integration (alternative to S3)
+
+When Supabase is already connected to the Vercel project, set `STORAGE_DRIVER=supabase` and `SUPABASE_STORAGE_BUCKET=brightpath-private`. The server-only REST adapter uses the integration's `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`; these values must remain server-side and sensitive. It uses the same AES-256-GCM encrypted object format and tenant-checked downloads as the other storage drivers. No new storage provider is needed. An operator calls `ensurePrivateBucket` from `src/lib/supabase-storage.ts` to create/check the private bucket. It refuses a public bucket instead of silently changing its policy. This adapter has been tested against a local HTTP contract server; actual provider connectivity is verified separately.
+
+If `DATABASE_URL` is unset, the app uses `POSTGRES_URL`. When using that integration URL, `POSTGRES_PASSWORD` supplies the current password, with proper URL encoding. Explicit `DATABASE_URL` always takes precedence. For migration session locks, the integration's Supabase transaction-pool URL is mapped to the same provider's session pool on port 5432 when no explicit direct URL is set; it is not used as a transaction-pooled migration connection.
+
+Some Supabase database connections require the provider CA certificate. Download the public PEM certificate through Supabase's SSL settings/official HTTPS download and configure `DATABASE_SSL_CA` in Vercel. This is a public trust certificate, not the database password. The connection helper keeps `rejectUnauthorized: true` and hostname verification enabled, and removes the URL's overriding `sslmode` field only when an explicit CA is supplied. Never copy an unverified peer certificate into trust or disable TLS validation to bypass a failure.
+
+The operator-only `scripts/deployment-preflight.mjs` records connection status/error codes and storage API status without logging credential values or modifying the database. It is not part of the normal application build. Run it with the intended environment to diagnose connectivity before migrations. Vercel sensitive integration variables may only be usable inside Vercel; a protected, unaliased diagnostic build can perform this check without exposing their values.
+
 ## 1. Prepare the hosted database once
 
 Use a trusted terminal (this Codex workspace can be used when authorized credentials are bound) with Node.js 24. This is an operator setup step; it does **not** run the application on your computer.

@@ -1,3 +1,4 @@
+import { putSupabaseObject, getSupabaseObject, removeSupabaseObject } from './supabase-storage';
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -33,6 +34,10 @@ async function put(id: string, bytes: Buffer) {
     await writeFile(filePath(id), bytes, { mode: 0o600, flag: 'wx' });
     return;
   }
+  if (storageDriver() === 'supabase') {
+    await putSupabaseObject(id, bytes);
+    return;
+  }
   const { bucket, client } = cloud();
   try {
     await client.send(
@@ -50,6 +55,7 @@ async function put(id: string, bytes: Buffer) {
 }
 async function get(id: string) {
   if (storageDriver() === 'local') return readFile(filePath(id));
+  if (storageDriver() === 'supabase') return getSupabaseObject(id);
   const { bucket, client } = cloud();
   try {
     const result = await client.send(
@@ -82,6 +88,10 @@ export async function removeStored(id: string) {
     await unlink(filePath(id)).catch((e) => {
       if (e.code !== 'ENOENT') throw e;
     });
+    return;
+  }
+  if (storageDriver() === 'supabase') {
+    await removeSupabaseObject(id);
     return;
   }
   const { bucket, client } = cloud();

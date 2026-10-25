@@ -1,10 +1,11 @@
+import { supabaseStorageConfiguration } from './supabase-storage';
 /** Configuration checks report variable names only, never credential values. */
 type Env = Record<string, string | undefined>;
-export function storageDriver(env: Env = process.env): 'local' | 's3' {
+export function storageDriver(env: Env = process.env): 'local' | 's3' | 'supabase' {
   const driver = env.STORAGE_DRIVER || (env.VERCEL ? '' : 'local');
-  if (driver !== 'local' && driver !== 's3')
+  if (driver !== 'local' && driver !== 's3' && driver !== 'supabase')
     throw Error('Set STORAGE_DRIVER to s3 for Vercel, or local for development.');
-  if (env.VERCEL && driver !== 's3')
+  if (env.VERCEL && driver === 'local')
     throw Error('Vercel requires persistent S3 storage; its filesystem is ephemeral.');
   return driver;
 }
@@ -41,9 +42,11 @@ export function s3Configuration(env: Env = process.env) {
   };
 }
 export function validateVercelConfiguration(env: Env = process.env) {
-  if (env.STORAGE_DRIVER !== 's3') throw Error('Vercel requires STORAGE_DRIVER=s3.');
+  if (!['s3', 'supabase'].includes(env.STORAGE_DRIVER || ''))
+    throw Error('Vercel requires STORAGE_DRIVER=s3 or supabase.');
   storageDriver({ ...env, VERCEL: '1' });
-  s3Configuration({ ...env, VERCEL: '1' });
+  if (env.STORAGE_DRIVER === 'supabase') supabaseStorageConfiguration({ ...env, VERCEL: '1' });
+  else s3Configuration({ ...env, VERCEL: '1' });
   if (!env.STORAGE_KEY || !/^[a-f0-9]{64}$/i.test(env.STORAGE_KEY))
     throw Error('STORAGE_KEY must be 32 random bytes encoded as 64 hex characters.');
   if (!env.CRON_SECRET || env.CRON_SECRET.length < 32 || /\s/.test(env.CRON_SECRET))
@@ -56,6 +59,7 @@ export function validateVercelConfiguration(env: Env = process.env) {
     origin.password
   )
     throw Error('APP_ORIGIN must be the exact HTTPS application origin without a trailing slash.');
+  env = { ...env, DATABASE_URL: runtimeDatabaseUrl(env) };
   for (const name of ['DATABASE_URL', 'DATABASE_DIRECT_URL'] as const) {
     if (name === 'DATABASE_DIRECT_URL' && !env[name]) continue;
     if (!env[name])
@@ -71,7 +75,16 @@ export function validateVercelConfiguration(env: Env = process.env) {
 }
 
 export function migrationDatabaseUrl(env: Env = process.env) {
-  const value = env.DATABASE_DIRECT_URL || env.DATABASE_URL;
+  let value = env.DATABASE_DIRECT_URL || env.DATABASE_URL;
+  if (!value && env.POSTGRES_URL) {
+    const u = new URL(runtimeDatabaseUrl(env)!);
+    if (u.hostname.endsWith('.pooler.supabase.com')) {
+      u.port = '5432';
+      u.searchParams.delete('pgbouncer');
+      return u.toString();
+    }
+  }
+  value = value || runtimeDatabaseUrl(env);
   if (!value) throw Error('Set DATABASE_DIRECT_URL for migrations.');
   const url = new URL(value);
   if (!env.DATABASE_DIRECT_URL && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
@@ -79,4 +92,33 @@ export function migrationDatabaseUrl(env: Env = process.env) {
       'Set DATABASE_DIRECT_URL to a direct PostgreSQL connection for migration session locks.',
     );
   return value;
+}
+
+export function runtimeDatabaseUrl(env: Env = process.env) {
+  const value = env.DATABASE_URL || env.POSTGRES_URL;
+  if (!value) return undefined;
+  if (!env.DATABASE_URL && env.POSTGRES_PASSWORD) {
+    const u = new URL(value);
+    u.password = encodeURIComponent(env.POSTGRES_PASSWORD);
+    return u.toString();
+  }
+  return value;
+}
+
+/** An explicit provider CA supplements trust without weakening TLS verification.
+ * pg's URL sslmode parameter overrides its ssl object, so remove only that
+ * parameter when an operator-supplied CA is configured. Hostname checks remain on.
+ */
+export function postgresConnectionOptions(
+  connectionString: string | undefined,
+  env: Env = process.env,
+) {
+  if (!connectionString || !env.DATABASE_SSL_CA) return { connectionString };
+  const url = new URL(connectionString);
+  url.searchParams.delete('sslmode');
+  url.searchParams.delete('sslrootcert');
+  return {
+    connectionString: url.toString(),
+    ssl: { ca: env.DATABASE_SSL_CA, rejectUnauthorized: true },
+  };
 }

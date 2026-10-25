@@ -6,7 +6,7 @@ A calm, responsive care workspace built with Next.js 16, React 19, TypeScript, T
 
 ## Vercel hosting
 
-For hosted deployment, follow [the Vercel guide](docs/VERCEL_DEPLOYMENT.md). It covers private S3 storage, pooled PostgreSQL, operator-run migrations/first-admin creation, deployment variables, daily protected cron recovery and a hosted smoke-test checklist. No paid services or public deployment were created. Local setup below remains supported.
+For hosted deployment, follow [the Vercel guide](docs/VERCEL_DEPLOYMENT.md). It covers private S3 or the existing Supabase storage integration, pooled PostgreSQL, operator-run migrations/first-admin creation, deployment variables, daily protected cron recovery and a hosted smoke-test checklist. No paid services or public deployment were created. Local setup below remains supported.
 
 ## Quick start
 

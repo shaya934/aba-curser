@@ -2,7 +2,7 @@
  * This small runner avoids a schema-engine binary download in restricted cloud machines.
  * The Prisma migration table is compatible with `prisma migrate deploy`.
  */
-import { migrationDatabaseUrl } from '../src/lib/deployment';
+import { migrationDatabaseUrl, postgresConnectionOptions } from '../src/lib/deployment';
 import { Client } from 'pg';
 import { createHash, randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
