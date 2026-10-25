@@ -118,3 +118,7 @@ Set a legally reviewed retention/legal-hold policy; the application archives cli
 - `src/app/api/[...path]/route.ts`, `src/lib/api.ts`: authenticated API dispatch/error boundary.
 - `prisma/`: database models, checked-in migrations and synthetic seed.
 - `tests/`: database/API/integration checks and real Chromium desktop/mobile tests.
+
+## Goal bank
+
+Goals & targets → **Browse goal bank · 1,000 templates** opens the imported spreadsheet library for administrators and BCBAs. Search by ID/skill/goal text and filter by 20 domains or five levels. Choose a client, review a template and edit its goal/criteria before saving. New drafts start as Not Started; source ID, original measurement guidance, prompt expectation and clinical notes are retained. Targets and observations are never created automatically. RBT/BT access to the bank API is denied. See data/README.md for source provenance.

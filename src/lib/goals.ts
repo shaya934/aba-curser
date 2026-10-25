@@ -1,3 +1,4 @@
+import { searchGoalBank } from './goal-bank';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { db } from './db';
@@ -35,6 +36,20 @@ export const snapshot = (data: unknown) =>
   JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 export async function goals(actor: Actor, path: string[], req: Request): Promise<Response | null> {
   const [resource, id, action] = path;
+  if (resource === 'goal-bank') {
+    roles(actor, 'ADMIN', 'BCBA');
+    if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed.');
+    const url = new URL(req.url);
+    const input = z
+      .object({
+        q: z.string().max(200).optional(),
+        domain: z.string().max(200).optional(),
+        level: z.string().max(100).optional(),
+        page: z.coerce.number().int().min(1).max(10000).default(1),
+      })
+      .parse(Object.fromEntries(url.searchParams));
+    return Response.json(searchGoalBank(input));
+  }
   if (!['goals', 'targets'].includes(resource)) return null;
   const method = req.method;
   if (resource === 'goals' && !id && method === 'GET')

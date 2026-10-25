@@ -1,4 +1,6 @@
 'use client';
+import GoalBank from './GoalBank';
+import { draftFromTemplate } from '@/lib/goal-template';
 import { useState } from 'react';
 import type { Actor } from '@/lib/auth';
 import { api, useData, Form, Modal, Notice, Heading, type Field } from './common';
@@ -35,6 +37,7 @@ export default function Goals({ actor }: { actor: Actor }) {
   const clients = useData<any[]>('clients');
   const [client, setClient] = useState('');
   const [editing, setEditing] = useState<any>(null);
+  const [bankOpen, setBankOpen] = useState(false);
   const [history, setHistory] = useState<any>(null);
   const canEdit = ['ADMIN', 'BCBA'].includes(actor.role);
   const selected =
@@ -61,6 +64,22 @@ export default function Goals({ actor }: { actor: Actor }) {
           )
         }
       />
+      {canEdit && (
+        <button onClick={() => setBankOpen(true)}>Browse goal bank · 1,000 templates</button>
+      )}
+      {bankOpen && (
+        <Modal title="Goal bank" close={() => setBankOpen(false)}>
+          <GoalBank
+            clientId={selected}
+            onChoose={(entry) => {
+              const d = new Date();
+              const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              setBankOpen(false);
+              setEditing({ kind: 'goal', value: draftFromTemplate(entry, selected, day) });
+            }}
+          />
+        </Modal>
+      )}
       <Notice error={error} />
       <section className="card">
         <label htmlFor="goal-client">Client</label>
