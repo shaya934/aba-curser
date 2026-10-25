@@ -1,0 +1,23 @@
+import { existsSync } from 'node:fs';
+import { defineConfig, devices } from '@playwright/test';
+export default defineConfig({
+  testDir: './tests/browser',
+  fullyParallel: false,
+  workers: 1,
+  timeout: 60000,
+  use: {
+    baseURL: process.env.APP_ORIGIN || 'http://localhost:3000',
+    trace: 'retain-on-failure',
+    launchOptions: {
+      executablePath:
+        process.env.CHROMIUM_PATH ||
+        (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
+      args: ['--no-sandbox'],
+    },
+  },
+  projects: [
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
+  ],
+  reporter: 'list',
+});

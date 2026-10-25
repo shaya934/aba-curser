@@ -1,0 +1,70 @@
+'use client';
+import { useState } from 'react';
+import { HeartHandshake, ArrowRight } from 'lucide-react';
+export default function Login() {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <main className="login">
+      <div className="card login-box">
+        <div className="brand">
+          <span className="brand-mark">
+            <HeartHandshake size={25} />
+          </span>
+          brightpath
+        </div>
+        <div className="eyebrow">A clear path to connected care</div>
+        <h1>Welcome back.</h1>
+        <p className="muted">Sign in to your care workspace.</p>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError('');
+            const data = new FormData(e.currentTarget);
+            try {
+              const r = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(data)),
+              });
+              const b = await r.json();
+              if (!r.ok) throw Error(b.error);
+              window.location.href = '/';
+            } catch (e) {
+              setError((e as Error).message);
+              setBusy(false);
+            }
+          }}
+        >
+          <div className="field">
+            <label htmlFor="email">Work email</label>
+            <input id="email" name="email" type="email" autoComplete="username" required />
+          </div>
+          <div className="field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          {error && (
+            <p role="alert" className="error">
+              {error}
+            </p>
+          )}
+          <button className="primary" style={{ width: '100%' }} disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
+            <ArrowRight size={18} />
+          </button>
+        </form>
+        <p className="small muted">
+          Your agency provides your account. Contact your administrator if you need access.
+        </p>
+      </div>
+    </main>
+  );
+}
