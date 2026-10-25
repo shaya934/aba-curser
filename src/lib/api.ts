@@ -1,3 +1,4 @@
+import { acceptInvitation } from './invitations';
 import { validateVercelConfiguration } from './deployment';
 import { rateLimit } from './limits';
 import { DateTime } from 'luxon';
@@ -38,6 +39,8 @@ export async function handle(request: NextRequest, path: string[]) {
       response.headers.set('Cache-Control', 'no-store');
       return response;
     }
+    if (route === 'auth/accept-invitation' && request.method === 'POST')
+      return await acceptInvitation(request);
     const actor = await currentActor();
     await rateLimit(`user:${actor.id}`);
     if (route === 'auth/logout' && request.method === 'POST') {

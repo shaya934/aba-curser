@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+import { createInvitation, emailConfigured } from './invitations';
 import { z } from 'zod';
 import { PDFDocument } from 'pdf-lib';
 import { db } from './db';
@@ -93,15 +95,29 @@ export async function profiles(
       );
     }
     roles(actor, 'ADMIN');
+    if (method === 'GET' && id === 'invitation-settings')
+      return Response.json({ configured: emailConfigured() });
+    if (id && action === 'invitation' && method === 'POST')
+      return Response.json(await createInvitation(actor, id), {
+        headers: { 'Cache-Control': 'no-store' },
+      });
     if (method === 'POST' && !id) {
       const input = staffInput.parse(await json(req));
-      if (!input.password) throw new HttpError(400, 'Initial password is required.');
       const { password, ...data } = input;
       const user = await db.user.create({
-        data: { ...data, orgId: actor.orgId, passwordHash: passwordHash(password) },
+        data: {
+          ...data,
+          orgId: actor.orgId,
+          passwordHash: passwordHash(password || randomBytes(32).toString('hex')),
+        },
       });
       await audit(actor, 'staff.create', user.id);
-      return Response.json(publicUser(user), { status: 201 });
+      const invitation =
+        user.status === 'Active' ? await createInvitation(actor, user.id) : undefined;
+      return Response.json(
+        { ...publicUser(user), invitation },
+        { status: 201, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
     if (id && method === 'PATCH') {
       const user = await db.user.findFirst({ where: { id, orgId: actor.orgId } });
@@ -114,7 +130,14 @@ export async function profiles(
           where: { id },
           data: { ...data, ...(password ? { passwordHash: passwordHash(password) } : {}) },
         });
-        if (password || data.status !== 'Active' || data.role !== user.role)
+        if (password || data.status !== 'Active' || data.email !== user.email)
+          await tx.staffInvitation.deleteMany({ where: { userId: id } });
+        if (
+          password ||
+          data.status !== 'Active' ||
+          data.role !== user.role ||
+          data.email !== user.email
+        )
           await tx.authSession.deleteMany({ where: { userId: id } });
         return u;
       });

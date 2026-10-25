@@ -5,6 +5,7 @@ import type { Actor } from '@/lib/auth';
 import { api, useData, Form, Modal, Notice, Heading, type Field } from './common';
 import Documents from './Documents';
 import Goals from './Goals';
+import StaffInvitation, { InvitationReceipt, type InvitationResult } from './StaffInvitation';
 const clientFields: Field[] = [
   { name: 'name', label: 'Full name', required: true },
   { name: 'clientCode', label: 'Client ID', required: true },
@@ -43,6 +44,7 @@ export default function Profiles({
   actor: Actor;
 }) {
   const { data, error, refresh } = useData<any[]>(kind);
+  const [invitation, setInvitation] = useState<InvitationResult | null>(null);
   const [editing, setEditing] = useState<any>(null);
   const [tab, setTab] = useState('Overview');
   const [search, setSearch] = useState('');
@@ -68,6 +70,7 @@ export default function Profiles({
         }
       />
       <Notice error={error} />
+      {invitation && <InvitationReceipt result={invitation} close={() => setInvitation(null)} />}
       {editing && (
         <Modal
           title={`${editing.id ? 'Edit' : 'Add'} ${kind === 'clients' ? 'client' : 'staff'}`}
@@ -80,8 +83,8 @@ export default function Profiles({
                     ...f,
                     label: editing.id
                       ? 'New password (leave blank to keep)'
-                      : 'Initial password (12+ characters)',
-                    required: !editing.id,
+                      : 'Optional initial password (therapist can set their own)',
+                    required: false,
                   }
                 : f,
             )}
@@ -89,12 +92,13 @@ export default function Profiles({
             submit="Save profile"
             onSave={async (d) => {
               if (!d.password) delete d.password;
-              await api(
+              const saved = await api(
                 kind + (editing.id ? '/' + editing.id : ''),
                 editing.id ? 'PATCH' : 'POST',
                 d,
               );
               setEditing(null);
+              if (saved.invitation) setInvitation(saved.invitation);
               refresh();
             }}
           />
@@ -141,6 +145,9 @@ export default function Profiles({
         </>
       ) : item ? (
         <>
+          {kind === 'staff' && actor.role === 'ADMIN' && (
+            <StaffInvitation userId={item.id} active={item.status === 'Active'} />
+          )}
           <div className="tabs">
             {(kind === 'clients'
               ? ['Overview', 'Goals & Targets', 'Schedule', 'Sessions', 'Progress', 'Documents']

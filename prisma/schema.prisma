@@ -43,6 +43,7 @@ model User {
  createdAt DateTime @default(now())
  assignments Assignment[]
  authSessions AuthSession[]
+ invitation StaffInvitation?
  appointments Appointment[]
  sessions ClinicalSession[]
 }
@@ -268,4 +269,13 @@ model SessionTimer {
  startedAt DateTime @default(now())
  targetSnapshot Json
  @@unique([sessionId, targetId])
+}
+
+model StaffInvitation {
+ userId String @id
+ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ tokenHash String @unique
+ email String
+ expiresAt DateTime
+ createdAt DateTime @default(now())
 }

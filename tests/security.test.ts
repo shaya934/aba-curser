@@ -71,7 +71,7 @@ test('rate limits are shared, bounded and reset after expiration', async () => {
 test('clinical, account and document tables have database row security enabled', async () => {
   const result = await db.$queryRaw<
     { relname: string; relrowsecurity: boolean }[]
-  >`SELECT relname::text AS relname,relrowsecurity FROM pg_class JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace WHERE nspname='public' AND relname IN ('User','Client','Document','ClinicalSession','AuthSession')`;
-  assert.equal(result.length, 5);
+  >`SELECT relname::text AS relname,relrowsecurity FROM pg_class JOIN pg_namespace ON pg_namespace.oid=pg_class.relnamespace WHERE nspname='public' AND relname IN ('User','Client','Document','ClinicalSession','AuthSession','StaffInvitation')`;
+  assert.equal(result.length, 6);
   assert(result.every((r) => r.relrowsecurity));
 });
