@@ -1,18 +1,13 @@
+import { sourceTemplate, suggestionsConfigured, suggestTargets } from './target-suggestions';
+import { rateLimit } from './limits';
 import { searchGoalBank } from './goal-bank';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { db } from './db';
 import { type Actor, roles, requireClient, clientScope, HttpError, audit } from './auth';
 import { json, short, text, day } from './validation';
-export const measurements = [
-  'Correct/Incorrect',
-  'Independent/Prompted',
-  'Frequency',
-  'Duration',
-  'Percentage',
-  'Yes/No',
-] as const;
-export const statuses = ['Not Started', 'Active', 'Mastered', 'On Hold', 'Discontinued'] as const;
+import { measurements, statuses } from './clinical-definitions';
+export { measurements, statuses } from './clinical-definitions';
 const goalInput = z.object({
   clientId: z.string().min(1),
   name: short.min(1),
@@ -92,6 +87,22 @@ export async function goals(actor: Actor, path: string[], req: Request): Promise
   if (!entity) throw new HttpError(404, 'Definition not found.');
   const clientId = 'clientId' in entity ? entity.clientId : entity.goal.clientId;
   await requireClient(actor, clientId);
+  if (resource === 'goals' && action === 'target-suggestions') {
+    roles(actor, 'ADMIN', 'BCBA');
+    const template = sourceTemplate(entity.description);
+    if (method === 'GET')
+      return Response.json({ configured: suggestionsConfigured(), eligible: !!template });
+    if (method !== 'POST') throw new HttpError(405, 'Method not allowed.');
+    if (!template)
+      throw new HttpError(
+        400,
+        'AI suggestions require a library-sourced goal, so client records are never sent to the provider.',
+      );
+    await rateLimit(`target-ai:${actor.id}`, 5, 60000);
+    const drafts = await suggestTargets(template);
+    await audit(actor, 'goal.target_suggestions', id);
+    return Response.json({ drafts, sourceId: template.id });
+  }
   if (method === 'GET' && action === 'history')
     return Response.json(
       await db.clinicalHistory.findMany({

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { Actor } from '@/lib/auth';
 import { api, useData, Form, Modal, Notice, Heading, type Field } from './common';
 import Documents from './Documents';
+import Goals from './Goals';
 const clientFields: Field[] = [
   { name: 'name', label: 'Full name', required: true },
   { name: 'clientCode', label: 'Client ID', required: true },
@@ -247,7 +248,7 @@ export default function Profiles({
               staffId={kind === 'staff' ? id : undefined}
             />
           )}{' '}
-          {tab === 'Goals & Targets' && <Related clientId={id!} resource="goals" />}
+          {tab === 'Goals & Targets' && <Goals key={id} clientId={id!} actor={actor} />}
           {tab === 'Schedule' && (
             <Related
               clientId={kind === 'clients' ? id : undefined}

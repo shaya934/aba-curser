@@ -1,4 +1,5 @@
 'use client';
+import TargetSuggestions from './TargetSuggestions';
 import GoalBank from './GoalBank';
 import { draftFromTemplate } from '@/lib/goal-template';
 import { useState } from 'react';
@@ -32,15 +33,18 @@ const targetFields: Field[] = [
   { name: 'masteryCriteria', label: 'Mastery criteria', type: 'textarea', required: true },
   { name: 'status', label: 'Status', options: statuses, value: 'Active' },
 ];
-export default function Goals({ actor }: { actor: Actor }) {
+export default function Goals({ actor, clientId }: { actor: Actor; clientId?: string }) {
   const { data, error, refresh } = useData<any[]>('goals');
   const clients = useData<any[]>('clients');
   const [client, setClient] = useState('');
   const [editing, setEditing] = useState<any>(null);
+  const [suggestedDrafts, setSuggestedDrafts] = useState<Record<string, any[]>>({});
+  const [suggestionGoal, setSuggestionGoal] = useState<string | null>(null);
   const [bankOpen, setBankOpen] = useState(false);
   const [history, setHistory] = useState<any>(null);
   const canEdit = ['ADMIN', 'BCBA'].includes(actor.role);
   const selected =
+    clientId ||
     client ||
     (typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('client')
@@ -65,7 +69,9 @@ export default function Goals({ actor }: { actor: Actor }) {
         }
       />
       {canEdit && (
-        <button onClick={() => setBankOpen(true)}>Browse goal bank · 2,000 templates</button>
+        <button onClick={() => setBankOpen(true)}>
+          {clientId ? 'Add from library to this treatment' : 'Browse goal bank · 2,000 templates'}
+        </button>
       )}
       {bankOpen && (
         <Modal title="Goal bank" close={() => setBankOpen(false)}>
@@ -81,17 +87,19 @@ export default function Goals({ actor }: { actor: Actor }) {
         </Modal>
       )}
       <Notice error={error} />
-      <section className="card">
-        <label htmlFor="goal-client">Client</label>
-        <select id="goal-client" value={selected} onChange={(e) => setClient(e.target.value)}>
-          <option value="">Choose client…</option>
-          {clients.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </section>
+      {!clientId && (
+        <section className="card">
+          <label htmlFor="goal-client">Client</label>
+          <select id="goal-client" value={selected} onChange={(e) => setClient(e.target.value)}>
+            <option value="">Choose client…</option>
+            {clients.data?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
       {data
         ?.filter((g) => g.clientId === selected)
         .map((g) => (
@@ -108,6 +116,7 @@ export default function Goals({ actor }: { actor: Actor }) {
                     <button onClick={() => setEditing({ kind: 'goal', value: g })}>
                       Edit goal
                     </button>
+                    <button onClick={() => setSuggestionGoal(g.id)}>Suggest targets (AI)</button>
                     <button
                       className="primary"
                       onClick={() => setEditing({ kind: 'target', goalId: g.id, value: {} })}
@@ -183,8 +192,35 @@ export default function Goals({ actor }: { actor: Actor }) {
                 editing.value.id ? 'PATCH' : 'POST',
                 value,
               );
+              if (editing.suggestionDraftId) {
+                const remaining = (suggestedDrafts[editing.goalId] || []).filter(
+                  (d) => d.draftId !== editing.suggestionDraftId,
+                );
+                setSuggestedDrafts((previous) => ({ ...previous, [editing.goalId]: remaining }));
+                if (remaining.length) setSuggestionGoal(editing.goalId);
+              }
               setEditing(null);
               refresh();
+            }}
+          />
+        </Modal>
+      )}
+      {suggestionGoal && (
+        <Modal title="AI target drafts for BCBA review" close={() => setSuggestionGoal(null)}>
+          <TargetSuggestions
+            goalId={suggestionGoal}
+            drafts={suggestedDrafts[suggestionGoal] || []}
+            onGenerated={(drafts) =>
+              setSuggestedDrafts((previous) => ({ ...previous, [suggestionGoal]: drafts }))
+            }
+            onReview={(draft) => {
+              setEditing({
+                kind: 'target',
+                goalId: suggestionGoal,
+                value: draft,
+                suggestionDraftId: draft.draftId,
+              });
+              setSuggestionGoal(null);
             }}
           />
         </Modal>
