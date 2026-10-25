@@ -16,11 +16,11 @@ test('browse spreadsheet bank and review/edit a template before saving to a clie
   await page.goto('/goals');
   await page.getByLabel('Client', { exact: true }).selectOption(c.id);
   await page.getByRole('button', { name: /Browse goal bank/ }).click();
-  await expect(page.getByRole('status')).toContainText('1000 matching');
-  await page.getByLabel('Search goal bank').fill('ABA-0001');
+  await expect(page.getByRole('status')).toContainText('2000 matching');
+  await page.getByLabel('Search goal bank').fill('ABA-1001');
   await expect(page.getByRole('status')).toContainText('1 matching');
   await page.getByRole('button', { name: 'Review template', exact: true }).click();
-  await expect(page.getByLabel('Description')).toHaveValue(/ABA-0001/);
+  await expect(page.getByLabel('Description')).toHaveValue(/ABA-1001/);
   await page.getByLabel('Goal name').fill('Clinician reviewed synthetic request');
   await page.getByRole('button', { name: 'Save definition' }).click();
   await expect(
@@ -30,5 +30,5 @@ test('browse spreadsheet bank and review/edit a template before saving to a clie
   const g = goals.find((g: any) => g.clientId === c.id);
   expect(g.status).toBe('Not Started');
   expect(g.targets).toHaveLength(0);
-  expect(g.description).toContain('Opportunity-based %');
+  expect(g.description).toContain('Percent of opportunities');
 });

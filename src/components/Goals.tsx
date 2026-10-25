@@ -65,7 +65,7 @@ export default function Goals({ actor }: { actor: Actor }) {
         }
       />
       {canEdit && (
-        <button onClick={() => setBankOpen(true)}>Browse goal bank · 1,000 templates</button>
+        <button onClick={() => setBankOpen(true)}>Browse goal bank · 2,000 templates</button>
       )}
       {bankOpen && (
         <Modal title="Goal bank" close={() => setBankOpen(false)}>

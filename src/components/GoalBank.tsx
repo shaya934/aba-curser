@@ -20,7 +20,7 @@ export default function GoalBank({
   return (
     <div className="stack">
       <p className="muted">
-        1,000 reusable templates. Review and individualize for the client before saving. Selecting a
+        2,000 reusable templates. Review and individualize for the client before saving. Selecting a
         template opens a draft; no clinical observations or targets are created.
       </p>
       <div>
