@@ -6,9 +6,7 @@ import { migrationDatabaseUrl, postgresConnectionOptions } from '../src/lib/depl
 import { Client } from 'pg';
 import { createHash, randomUUID } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
-const db = new Client({
-  connectionString: migrationDatabaseUrl(),
-});
+const db = new Client(postgresConnectionOptions(migrationDatabaseUrl()));
 await db.connect();
 try {
   await db.query('SELECT pg_advisory_lock(8675309)');

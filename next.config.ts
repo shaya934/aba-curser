@@ -1,7 +1,13 @@
 import type { NextConfig } from 'next';
 const config: NextConfig = {
   poweredByHeader: false,
-  outputFileTracingIncludes: { '/api/**/*': ['./assets/fonts/DejaVuSans.ttf'] },
+  outputFileTracingIncludes: {
+    '/*': ['./node_modules/.prisma/client/query_compiler_bg.wasm'],
+    '/api/**/*': [
+      './assets/fonts/DejaVuSans.ttf',
+      './node_modules/.prisma/client/query_compiler_bg.wasm',
+    ],
+  },
   async headers() {
     return [
       {

@@ -1,5 +1,11 @@
+import { redirect } from 'next/navigation';
 import Workspace from '@/components/Workspace';
 import { currentActor } from '@/lib/auth';
 export default async function Page({ params }: { params: Promise<{ section?: string[] }> }) {
-  return <Workspace section={(await params).section || []} actor={await currentActor()} />;
+  return (
+    <Workspace
+      section={(await params).section || []}
+      actor={await currentActor().catch(() => redirect('/login'))}
+    />
+  );
 }

@@ -32,3 +32,7 @@ The seven development phases provide a working local application and verified sy
 - GitHub API access is subject to the task's network policy. Git push and PR creation outcomes are recorded in DEVELOPMENT_PROGRESS.md; a pushed branch alone does not prove a PR exists.
 
 - Vercel preparation has been tested locally, including the S3 HTTP protocol against an emulator. A real hosted PostgreSQL/S3/Vercel deployment still needs user-selected providers, securely configured credentials, operator migrations/first administrator, and the hosted smoke checks in docs/VERCEL_DEPLOYMENT.md. No deployment or paid subscription was created.
+
+## Hosted status (October 25, 2026)
+
+A Vercel/Supabase deployment now exists at https://aba-curser.vercel.app. Hosted authentication, database-backed dashboard, anonymous denial, PDF rendering and encrypted storage smoke checks passed with synthetic technical data. Earlier statements about unprovisioned hosting describe the earlier development phase. This does not verify every clinical workflow on the hosted instance or establish HIPAA compliance, BAA eligibility, commercial plan eligibility, clinical approval or backup/recovery operations. Use synthetic data until those reviews are complete.

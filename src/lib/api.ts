@@ -139,7 +139,17 @@ export function apiError(error: unknown) {
       { status: 409 },
     );
   // Never log request bodies or clinical records.
-  console.error('Request failed:', error instanceof Error ? error.name : 'UnknownError');
+  console.error(
+    'Request failed:',
+    error instanceof Error ? error.name : 'UnknownError',
+    error instanceof Prisma.PrismaClientKnownRequestError
+      ? {
+          code: error.code,
+          driver: (error.meta?.driverAdapterError as any)?.cause?.kind,
+          postgres: (error.meta?.driverAdapterError as any)?.cause?.originalCode,
+        }
+      : '',
+  );
   return NextResponse.json(
     { error: 'The operation could not be completed. Please try again.' },
     { status: 500 },

@@ -68,7 +68,8 @@ export function validateVercelConfiguration(env: Env = process.env) {
     if (
       !['postgres:', 'postgresql:'].includes(url.protocol) ||
       !url.hostname ||
-      !['require', 'verify-full', 'verify-ca'].includes(url.searchParams.get('sslmode') || '')
+      (!env.DATABASE_SSL_CA &&
+        !['require', 'verify-full', 'verify-ca'].includes(url.searchParams.get('sslmode') || ''))
     )
       throw Error(`${name} must be a PostgreSQL URL with TLS (sslmode=require or verify-full).`);
   }
@@ -117,6 +118,9 @@ export function postgresConnectionOptions(
   const url = new URL(connectionString);
   url.searchParams.delete('sslmode');
   url.searchParams.delete('sslrootcert');
+  url.searchParams.delete('ssl');
+  url.searchParams.delete('sslcert');
+  url.searchParams.delete('sslkey');
   return {
     connectionString: url.toString(),
     ssl: { ca: env.DATABASE_SSL_CA, rejectUnauthorized: true },

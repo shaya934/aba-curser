@@ -73,7 +73,17 @@ export async function ensurePrivateBucket() {
     headers,
     signal: AbortSignal.timeout(15000),
   });
-  if (r.status === 404) {
+  const error = !r.ok
+    ? await r
+        .clone()
+        .json()
+        .catch(() => ({}))
+    : {};
+  const missing =
+    r.status === 404 ||
+    (r.status === 400 &&
+      (String(error.statusCode) === '404' || error.error === 'Bucket not found'));
+  if (missing) {
     await request(
       'bucket',
       'POST',

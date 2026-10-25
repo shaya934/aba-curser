@@ -24,8 +24,8 @@ test('Supabase private REST adapter stores encrypted objects, verifies bucket pr
     const path = req.url!;
     if (path === '/storage/v1/bucket/brightpath-private') {
       res
-        .writeHead(bucket ? 200 : 404, { 'content-type': 'application/json' })
-        .end(JSON.stringify(bucket || {}));
+        .writeHead(bucket ? 200 : 400, { 'content-type': 'application/json' })
+        .end(JSON.stringify(bucket || {statusCode:'404',error:'Bucket not found'}));
       return;
     }
     if (path === '/storage/v1/bucket' && req.method === 'POST') {

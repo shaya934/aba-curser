@@ -124,3 +124,9 @@ test('remote migrations require a direct connection and local development remain
   );
   assert.equal(migrationDatabaseUrl(valid), valid.DATABASE_DIRECT_URL);
 });
+
+test('CLI deployment excludes local credentials, backups and generated output', async () => {
+  const ignore = await readFile('.vercelignore', 'utf8');
+  for (const pattern of ['.env', '.env.*', 'var', '.vercel', 'node_modules', '.next'])
+    assert(ignore.split(/\r?\n/).includes(pattern), `Missing deployment exclusion: ${pattern}`);
+});
